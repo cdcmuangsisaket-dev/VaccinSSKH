@@ -2,83 +2,46 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ระบบแสดงความยินยอมการฉีดวัคซีน</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- SweetAlert2 สำหรับแจ้งเตือนแบบสวยงาม -->
+    <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
-    <!-- SheetJS สำหรับอ่าน/สร้างไฟล์ Excel -->
+    <!-- SheetJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
-    <!-- JsBarcode สำหรับสร้างแท่งบาร์โค้ดมาตรฐาน -->
+    <!-- JsBarcode -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
 
-    <!-- html2canvas สำหรับแปลงหน้าจอเป็นรูปภาพในมือถือ -->
+    <!-- html2canvas (สำหรับแปลงเป็นรูปบนมือถือ) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body {
-            font-family: 'Prompt', sans-serif;
-            background-color: #f9fafb;
-        }
+        body { font-family: 'Prompt', sans-serif; background-color: #f9fafb; }
+        
+        .radio-card-input:checked + .radio-card-body { border-color: #3b82f6; background-color: #ffffff; box-shadow: 0 0 0 1px #3b82f6; }
+        .q-radio:checked + .q-body.warning { border-color: #ef4444; color: #ef4444; }
+        .q-radio:checked + .q-body.safe { border-color: #10b981; color: #10b981; }
+        .decision-radio:checked + .decision-body.consent { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+        .decision-radio:checked + .decision-body.consent .icon-wrapper { background-color: #3b82f6; color: white; }
+        .decision-radio:checked + .decision-body.consent .text-label { color: #1d4ed8; }
+        .decision-radio:checked + .decision-body.decline { border-color: #ef4444; box-shadow: 0 0 0 1px #ef4444; }
+        .decision-radio:checked + .decision-body.decline .icon-wrapper { background-color: #fee2e2; color: #ef4444; }
+        .decision-radio:checked + .decision-body.decline .text-label { color: #b91c1c; }
 
-        /* Custom Radio Button Card Styles (Modern Minimalist) */
-        .q-radio:checked + .q-body.warning {
-            border-color: #ef4444; 
-            color: #ef4444;
-        }
-        .q-radio:checked + .q-body.safe {
-            border-color: #10b981; 
-            color: #10b981;
-        }
-
-        .decision-radio:checked + .decision-body.consent {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 1px #3b82f6;
-        }
-        .decision-radio:checked + .decision-body.consent .icon-wrapper {
-            background-color: #3b82f6;
-            color: white;
-        }
-        .decision-radio:checked + .decision-body.consent .text-label {
-            color: #1d4ed8;
-        }
-
-        .decision-radio:checked + .decision-body.decline {
-            border-color: #ef4444;
-            box-shadow: 0 0 0 1px #ef4444;
-        }
-        .decision-radio:checked + .decision-body.decline .icon-wrapper {
-            background-color: #fee2e2;
-            color: #ef4444;
-        }
-        .decision-radio:checked + .decision-body.decline .text-label {
-            color: #b91c1c;
-        }
-
-        /* Loading Overlay */
         #loadingOverlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255, 255, 255, 0.9);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 255, 255, 0.9); z-index: 9999;
+            justify-content: center; align-items: center; flex-direction: column;
         }
-
-        .swal2-popup {
-            font-family: 'Prompt', sans-serif !important;
-            border-radius: 20px !important;
-        }
+        .swal2-popup { font-family: 'Prompt', sans-serif !important; border-radius: 20px !important; }
     </style>
 </head>
 <body class="text-gray-800 antialiased min-h-screen relative flex flex-col justify-between">
@@ -95,27 +58,25 @@
                 <div class="flex justify-center mb-3">
                     <div class="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white transform -rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 000-1.42l-2.34-2.34a1.003 1.003 0 00-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z" />
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M14.5 12.5l-5-5M9 19l-4 4" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 000-1.42l-2.34-2.34a1.003 1.003 0 00-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.5 12.5l-5-5M9 19l-4 4" />
                         </svg>
                     </div>
                 </div>
                 <h1 class="text-2xl md:text-3xl font-bold text-white tracking-wide">ระบบแสดงความยินยอม</h1>
                 <p class="text-blue-100 mt-1 text-xs md:text-sm">โรงพยาบาลศรีสะเกษ - การรับบริการฉีดวัคซีนป้องกันโรคติดต่อ</p>
 
-                <!-- Tab Navigation -->
+                <!-- Tab Navigation Buttons -->
                 <div class="flex justify-center mt-6 space-x-2">
                     <button onclick="switchTab('service')" id="tabServiceBtn" class="bg-white text-blue-600 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all text-sm md:text-base flex items-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        หน้าลงทะเบียน/คัดกรอง
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg> หน้าลงทะเบียน/คัดกรอง
                     </button>
-                    <button onclick="switchTab('queue')" id="tabQueueBtn" class="bg-blue-700/60 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-xl transition-all text-sm md:text-base flex items-center">
+                    <button onclick="checkQueuePin()" id="tabQueueBtn" class="bg-blue-700/60 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-xl transition-all text-sm md:text-base flex items-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                        </svg>
-                        รายชื่อคิวผู้รับบริการ (ทั้งหมด)
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg> รายชื่อคิวผู้รับบริการ (ทั้งหมด)
                     </button>
                 </div>
             </div>
@@ -124,7 +85,7 @@
         <!-- ================= TAB 1: SERVICE PAGE ================= -->
         <div id="serviceTabContent" class="tab-content">
             <main id="mainContainer" class="max-w-7xl mx-auto px-4 py-10 grid grid-cols-1 gap-6 lg:gap-10 relative transition-all duration-500">
-
+                
                 <!-- LEFT COLUMN (Search & Profile) -->
                 <div id="leftColumn" class="max-w-md mx-auto w-full space-y-6 transition-all duration-500">
                     <div class="sticky top-6 space-y-6">
@@ -134,19 +95,18 @@
                                 <div class="bg-blue-100 text-blue-600 rounded-2xl w-10 h-10 flex items-center justify-center font-bold text-lg">1</div>
                                 <h2 class="text-xl font-bold text-gray-800">ค้นหาประวัติ</h2>
                             </div>
-                            
                             <div class="space-y-5">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">เลขบัตรประชาชน หรือ รหัส HN</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">เลขประจำตัวประชาชน หรือ รหัส HN</label>
                                     <input type="text" id="searchQuery" 
                                         class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-xl text-center shadow-sm"
-                                        placeholder="กรอกข้อมูลค้นหา">
+                                        placeholder="ระบุเลข 13 หลัก หรือ HN"
+                                        onkeypress="if(event.key === 'Enter') searchPatient()">
                                 </div>
                                 <button onclick="searchPatient()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-2xl shadow-md transition-colors flex items-center justify-center text-lg">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                    ค้นหาข้อมูล
+                                    </svg> ค้นหาข้อมูล
                                 </button>
                             </div>
                         </div>
@@ -155,9 +115,7 @@
                         <div id="patientInfoCard" class="hidden bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
                             <div class="bg-green-50 p-6 flex items-start border-b border-green-100">
                                 <div class="bg-green-100 p-2 rounded-full mr-4">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
                                 </div>
                                 <div>
                                     <h3 class="font-bold text-green-800 text-lg">พบข้อมูลผู้รับบริการ</h3>
@@ -187,49 +145,48 @@
                             <h2 class="text-2xl font-bold text-gray-800">การรับวัคซีนและการแสดงความยินยอม</h2>
                         </div>
 
+                        <!-- สัญญาณชีพ (Vitals) -->
+                        <div class="mb-10 bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
+                            <h3 class="font-bold text-blue-800 text-lg mb-4">สัญญาณชีพเบื้องต้น (หากไม่ได้กรอก จะเว้นว่างให้เขียนในใบยินยอม)</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">น้ำหนัก (กก.)</label>
+                                    <input type="number" id="vitalWeight" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">ส่วนสูง (ซม.)</label>
+                                    <input type="number" id="vitalHeight" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">อุณหภูมิ (°C)</label>
+                                    <input type="number" id="vitalTemp" step="0.1" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">ความดันโลหิต</label>
+                                    <input type="text" id="vitalBP" placeholder="เช่น 120/80" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- 2.1 เลือกวัคซีน -->
-                        <div class="mb-8">
+                        <div class="mb-10">
                             <label class="block text-sm font-bold text-gray-700 mb-3">ชนิดวัคซีนที่เข้ารับบริการ <span class="text-red-500">*</span></label>
                             <select id="vaccineSelect" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-lg bg-gray-50 cursor-pointer shadow-sm" onchange="loadQuestionnaire()">
                                 <option value="">-- กรุณาเลือกวัคซีน --</option>
                             </select>
-                        </div>
 
-                        <!-- 2.1.5 สัญญาณชีพ (Vital Signs) -->
-                        <div id="vitalsSection" class="mb-10 p-6 bg-blue-50/50 rounded-2xl border border-blue-100 hidden">
-                            <h3 class="font-bold text-blue-800 text-lg mb-4">ข้อมูลสัญญาณชีพ (ถ้ามี)</h3>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div id="vaccineWarning" class="mt-4 hidden bg-blue-50/50 p-5 rounded-2xl text-sm flex items-start border border-blue-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 flex-shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">น้ำหนัก (กก.)</label>
-                                    <input type="number" id="vitalWeight" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="เว้นว่างได้">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">ส่วนสูง (ซม.)</label>
-                                    <input type="number" id="vitalHeight" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="เว้นว่างได้">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">อุณหภูมิ (°C)</label>
-                                    <input type="number" step="0.1" id="vitalTemp" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="เว้นว่างได้">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">ความดัน (mmHg)</label>
-                                    <input type="text" id="vitalBP" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="เช่น 120/80">
+                                    <span class="font-bold text-blue-800">รายละเอียดและข้อควรระวัง</span>
+                                    <p id="vaccineDetailText" class="mt-1 text-blue-700 leading-relaxed"></p>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Warning Message -->
-                        <div id="vaccineWarning" class="mb-10 hidden bg-blue-50/50 p-5 rounded-2xl text-sm flex items-start border border-blue-100">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 flex-shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <div>
-                                <span class="font-bold text-blue-800">รายละเอียดและข้อควรระวัง</span>
-                                <p id="vaccineDetailText" class="mt-1 text-blue-700 leading-relaxed"></p>
-                            </div>
-                        </div>
-
-                        <!-- 2.2 แบบคัดกรอง -->
+                        <!-- 2.2 แบบคัดกรอง (Dynamic) -->
                         <div id="questionnaireSection" class="mb-10 hidden">
                             <h3 class="font-bold text-gray-800 text-lg mb-6 pb-3 border-b border-gray-100">แบบคัดกรองก่อนรับบริการ</h3>
                             <div id="questionsContainer" class="space-y-6"></div>
@@ -238,29 +195,22 @@
                         <!-- 2.3 การแสดงความจำนง -->
                         <div id="decisionSection" class="mb-10 hidden border-t border-gray-100 pt-8">
                             <h3 class="font-bold text-gray-800 text-lg mb-6 text-center">การแสดงความจำนงรับบริการ</h3>
-                            
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                                <!-- ยินยอม (Default) -->
                                 <label class="cursor-pointer">
                                     <input type="radio" name="decision" value="consent" class="peer sr-only decision-radio" checked>
                                     <div class="decision-body consent h-full rounded-2xl border-2 border-gray-100 p-6 flex flex-col items-center justify-center transition-all bg-white hover:border-blue-200">
                                         <div class="icon-wrapper w-12 h-12 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mb-4 transition-colors">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                                            </svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
                                         </div>
                                         <span class="text-label font-bold text-blue-800 text-lg transition-colors">ยินยอมรับการฉีดวัคซีน</span>
                                     </div>
                                 </label>
                                 
-                                <!-- ไม่ยินยอม -->
                                 <label class="cursor-pointer">
                                     <input type="radio" name="decision" value="decline" class="peer sr-only decision-radio">
                                     <div class="decision-body decline h-full rounded-2xl border-2 border-gray-100 p-6 flex flex-col items-center justify-center transition-all bg-white hover:border-red-200">
                                         <div class="icon-wrapper w-12 h-12 bg-red-50 text-red-400 rounded-full flex items-center justify-center mb-4 transition-colors">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                         </div>
                                         <span class="text-label font-bold text-gray-700 text-lg transition-colors">ไม่ยินยอมรับการฉีดวัคซีน</span>
                                     </div>
@@ -273,8 +223,7 @@
                             <button onclick="submitForm()" class="w-full bg-[#111827] hover:bg-black text-white font-bold py-4 px-6 rounded-2xl shadow-xl transition-all text-lg flex items-center justify-center group">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-300 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                </svg>
-                                บันทึกข้อมูลและสร้างใบยินยอม
+                                </svg> บันทึกข้อมูลและพิมพ์
                             </button>
                         </div>
                     </div>
@@ -325,13 +274,15 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
+        <span class="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 ease-in-out whitespace-nowrap ml-0 group-hover:ml-2 font-medium">สำหรับเจ้าหน้าที่</span>
     </button>
 
-    <!-- Admin Modal -->
+    <!-- Admin Modal (ตั้งค่า) -->
     <div id="adminModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex justify-center items-start pt-10 pb-10 overflow-y-auto">
         <div class="bg-white w-11/12 max-w-5xl rounded-xl shadow-2xl relative">
             <div class="flex justify-between items-center p-6 border-b">
                 <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     ระบบจัดการข้อมูล (Admin)
                 </h2>
                 <button onclick="closeAdmin()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
@@ -350,7 +301,7 @@
                         </label>
                         <label class="inline-flex items-center">
                             <input type="radio" name="barcodeType" value="CID" class="form-radio text-blue-600 h-5 w-5" onchange="saveBarcodeSetting(this.value)">
-                            <span class="ml-2">ใช้เลข 13 หลัก</span>
+                            <span class="ml-2">ใช้เลขประจำตัวประชาชน 13 หลัก</span>
                         </label>
                     </div>
                 </div>
@@ -358,49 +309,58 @@
                 <!-- 1. นำเข้าข้อมูล DB -->
                 <div class="border rounded-xl p-5">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-gray-800 text-lg">1. นำเข้าฐานข้อมูลประชากร</h3>
+                        <h3 class="font-bold text-gray-800 text-lg">1. นำเข้าฐานข้อมูลประชากร (เพื่อให้ประชาชนล็อกอิน)</h3>
                         <button onclick="downloadExcelTemplate()" class="text-blue-600 hover:text-blue-800 text-sm flex items-center font-medium bg-blue-50 px-3 py-1.5 rounded-lg">
-                            โหลดเทมเพลต Excel
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> โหลดเทมเพลต Excel
                         </button>
                     </div>
                     <div class="border-2 border-dashed border-green-300 rounded-xl p-8 text-center bg-green-50 hover:bg-green-100 transition-colors cursor-pointer relative">
                         <input type="file" id="excelUpload" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleExcelUpload(event)">
-                        <p class="text-green-700 font-medium">คลิกเพื่ออัปโหลด <span class="font-normal text-sm text-green-600">ไฟล์ Excel (.xlsx)</span></p>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-green-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                        <p class="text-green-700 font-medium">คลิกเพื่ออัปโหลด <span class="font-normal text-sm text-green-600">ไฟล์ Excel (.xlsx, .xls)</span></p>
                     </div>
-                    <p class="text-sm text-gray-500 mt-2">จำนวนข้อมูลปัจจุบัน: <span id="dbCount" class="font-bold text-gray-800">0</span> รายการ</p>
+                    <p class="text-sm text-gray-500 mt-2">จำนวนข้อมูลในระบบปัจจุบัน: <span id="dbCount" class="font-bold text-gray-800">0</span> รายการ</p>
                 </div>
 
-                <!-- 2. จัดการวัคซีน -->
+                <!-- 2. เปิด/ปิดวัคซีน และ เพิ่มวัคซีน -->
                 <div class="border rounded-xl p-5">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-gray-800 text-lg">2. จัดการชนิดวัคซีน</h3>
-                        <button onclick="openAddVaccineModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all">
-                            เพิ่มวัคซีนใหม่
+                        <h3 class="font-bold text-gray-800 text-lg">2. จัดการชนิดวัคซีน (เพิ่ม/แก้ไขรายละเอียด/ข้อคำถาม)</h3>
+                        <button onclick="openAddVaccineModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg> เพิ่มวัคซีนใหม่
                         </button>
                     </div>
                     <div id="adminVaccineList" class="space-y-4"></div>
                 </div>
 
-                <!-- 3. พิมพ์ฟอร์มเปล่า -->
+                <!-- 3. พิมพ์แบบฟอร์มล่วงหน้า -->
                 <div class="border rounded-xl p-5 bg-blue-50">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
-                        <h3 class="font-bold text-gray-800 text-lg">3. พิมพ์แบบฟอร์มเปล่าล่วงหน้า</h3>
-                        <button onclick="printBulkForms()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm">
-                            พิมพ์แบบฟอร์มทั้งหมด
-                        </button>
+                        <h3 class="font-bold text-gray-800 text-lg">3. พิมพ์แบบฟอร์มเปล่าล่วงหน้า (สำหรับนำไปให้เซ็น)</h3>
+                        <div class="flex gap-2">
+                            <button onclick="downloadExcelTemplate()" class="text-blue-600 bg-white border border-blue-200 hover:bg-blue-100 text-sm flex items-center font-medium px-3 py-1.5 rounded-lg">โหลดเทมเพลต</button>
+                            <button onclick="printBulkForms()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center shadow-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg> พิมพ์ทั้งหมด
+                            </button>
+                        </div>
                     </div>
+
                     <div class="mb-4">
-                        <select id="bulkVaccineSelect" class="w-full md:w-1/2 px-4 py-2 border rounded-lg outline-none">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">เลือกวัคซีนที่ต้องการพิมพ์ในฟอร์ม:</label>
+                        <select id="bulkVaccineSelect" class="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                             <option value="">-- กรุณาเลือกวัคซีน --</option>
                         </select>
                     </div>
-                    <div class="border-2 border-dashed border-blue-300 rounded-xl p-6 text-center bg-white hover:bg-blue-50 cursor-pointer relative mb-4">
+
+                    <div class="border-2 border-dashed border-blue-300 rounded-xl p-6 text-center bg-white hover:bg-blue-50 transition-colors cursor-pointer relative mb-4">
                         <input type="file" id="printUpload" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handlePrintUpload(event)">
-                        <p class="text-blue-700 font-medium text-sm">คลิกเพื่ออัปโหลดรายชื่อพิมพ์ฟอร์ม</p>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto text-blue-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                        <p class="text-blue-700 font-medium text-sm">คลิกเพื่ออัปโหลดไฟล์ <span class="font-bold">นำเข้าข้อมูลเพื่อพิมพ์เท่านั้น</span></p>
                     </div>
-                    <div class="overflow-x-auto rounded-lg border bg-white">
+
+                    <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
                         <table class="w-full text-sm text-left">
-                            <thead class="bg-gray-50 border-b">
+                            <thead class="text-xs text-gray-700 bg-gray-50 border-b">
                                 <tr>
                                     <th class="px-6 py-3">เลขประชาชน</th>
                                     <th class="px-6 py-3">รหัส HN</th>
@@ -409,15 +369,17 @@
                                 </tr>
                             </thead>
                             <tbody id="bulkPrintTable">
-                                <tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">ยังไม่ได้อัปโหลด</td></tr>
+                                <tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">ยังไม่ได้อัปโหลดรายชื่อสำหรับพิมพ์</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
 
+    <!-- Firebase Script & App Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -437,12 +399,8 @@
         const db = getFirestore(app);
         const appId = "vacinsskh"; 
 
-        // ตัวแปรกันกดปุ่มบันทึกเบิ้ล
-        let isSubmitting = false;
-
         let vaccinesData = [{
-            name: "ไข้หวัดใหญ่ (Influenza)",
-            active: true,
+            name: "ไข้หวัดใหญ่ (Influenza)", active: true,
             detail: "อาจมีอาการปวด บวม แดง บริเวณที่ฉีด หรือมีไข้ต่ำๆ",
             questions: [
                 "1. ท่านมีอาการเจ็บป่วยเฉียบพลัน หรือมีไข้สูงในวันนี้หรือไม่?",
@@ -457,9 +415,10 @@
         let printDataList = []; 
         let currentPatient = null; 
         let barcodeSetting = 'HN'; 
+        let isSubmitting = false; // กันกดเบิ้ล
 
-        // Export functions to global scope
         window.switchTab = switchTab;
+        window.checkQueuePin = checkQueuePin;
         window.searchPatient = searchPatient;
         window.loadQuestionnaire = loadQuestionnaire;
         window.submitForm = submitForm;
@@ -480,53 +439,42 @@
         window.editVaccineModal = editVaccineModal;
         window.deleteVaccine = deleteVaccine;
 
-        signInAnonymously(auth).then(() => {
-            initFirebaseListeners();
+        signInAnonymously(auth).then((userCredential) => {
+            if (userCredential.user) initFirebaseListeners();
         }).catch((error) => {
+            console.error(error);
             Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้', 'error');
         });
 
-        // ================= APP LOGIC =================
-
-        // เปลี่ยนแท็บ และดักพาสเวิร์ดสำหรับแท็บคิว
-        function switchTab(tabName) {
-            if (tabName === 'queue') {
-                Swal.fire({
-                    title: 'เข้าสู่ระบบดูคิว',
-                    input: 'password',
-                    inputAttributes: { autocapitalize: 'off', placeholder: 'รหัสผ่าน' },
-                    showCancelButton: true,
-                    confirmButtonText: 'ตกลง',
-                    cancelButtonText: 'ยกเลิก',
-                    confirmButtonColor: '#3b82f6'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        if (result.value === '3215') {
-                            executeSwitchTab('queue');
-                        } else {
-                            Swal.fire({ icon: 'error', title: 'รหัสผ่านไม่ถูกต้อง' });
-                        }
-                    }
-                });
-            } else {
-                executeSwitchTab('service');
-            }
+        function checkQueuePin() {
+            Swal.fire({
+                title: 'ใส่รหัสเพื่อดูคิว',
+                input: 'password',
+                inputAttributes: { autocapitalize: 'off' },
+                showCancelButton: true,
+                confirmButtonText: 'ตกลง',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#3b82f6'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    if (result.value === '3215') switchTab('queue');
+                    else Swal.fire({ icon: 'error', title: 'รหัสผ่านไม่ถูกต้อง' });
+                }
+            });
         }
 
-        function executeSwitchTab(tabName) {
+        function switchTab(tabName) {
             const serviceTab = document.getElementById('serviceTabContent');
             const queueTab = document.getElementById('queueTabContent');
             const serviceBtn = document.getElementById('tabServiceBtn');
             const queueBtn = document.getElementById('tabQueueBtn');
 
             if (tabName === 'service') {
-                serviceTab.classList.remove('hidden');
-                queueTab.classList.add('hidden');
+                serviceTab.classList.remove('hidden'); queueTab.classList.add('hidden');
                 serviceBtn.className = "bg-white text-blue-600 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all text-sm md:text-base flex items-center";
                 queueBtn.className = "bg-blue-700/60 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-xl transition-all text-sm md:text-base flex items-center";
             } else {
-                serviceTab.classList.add('hidden');
-                queueTab.classList.remove('hidden');
+                serviceTab.classList.add('hidden'); queueTab.classList.remove('hidden');
                 queueBtn.className = "bg-white text-blue-600 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all text-sm md:text-base flex items-center";
                 serviceBtn.className = "bg-blue-700/60 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-xl transition-all text-sm md:text-base flex items-center";
             }
@@ -552,123 +500,118 @@
                     const data = snapshot.data();
                     if (data.barcodeSetting) {
                         barcodeSetting = data.barcodeSetting;
-                        const radioSetting = document.querySelector(`input[name="barcodeType"][value="${barcodeSetting}"]`);
-                        if(radioSetting) radioSetting.checked = true;
+                        const radio = document.querySelector(`input[name="barcodeType"][value="${barcodeSetting}"]`);
+                        if(radio) radio.checked = true;
                     }
                     if (data.vaccinesData) {
                         vaccinesData = data.vaccinesData;
                         updateVaccineSelect();
                         renderAdminVaccines();
                     }
-                } else {
-                    setDoc(settingsRef, { barcodeSetting: 'HN', vaccinesData: vaccinesData });
                 }
             });
         }
 
         function searchPatient() {
             const query = document.getElementById('searchQuery').value.trim();
-            if(!query) {
+            const cleanQuery = query.replace(/^0+/, ''); // ตัดเลขศูนย์ข้างหน้าทิ้ง
+
+            if(!cleanQuery) {
                 Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: 'กรุณากรอกข้อมูลค้นหา' });
                 return;
             }
 
-            // ค้นหาแบบไม่สนใจเลข 0 ข้างหน้า เพื่อรองรับ HN
-            const cleanQuery = query.replace(/^0+/, ''); 
-            currentPatient = dbData.find(p => 
-                (p.cid && p.cid === query.replace(/[^0-9]/g, '') && query.length === 13) ||
-                (p.hn && p.hn.replace(/^0+/, '') === cleanQuery) ||
-                (p.cid && p.cid.replace(/^0+/, '') === cleanQuery)
-            );
+            // ค้นหาทั้งจาก CID หรือ HN (ตัด 0 หน้าทิ้งก่อนเทียบ)
+            currentPatient = dbData.find(p => {
+                const cleanCid = String(p.cid || '').replace(/^0+/, '');
+                const cleanHn = String(p.hn || '').replace(/^0+/, '');
+                return cleanCid === cleanQuery || cleanHn === cleanQuery;
+            });
 
             if(!currentPatient) {
-                promptAddNewPatient(query);
-                resetFormState();
+                askAddNewPatient(query);
                 return;
             }
 
-            processFoundPatient();
-        }
-
-        function promptAddNewPatient(initialData) {
-            Swal.fire({
-                title: 'ไม่พบข้อมูลในระบบ',
-                text: "ต้องการเพิ่มประวัติผู้รับบริการรายใหม่หรือไม่?",
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'เพิ่มรายใหม่',
-                cancelButtonText: 'ยกเลิก',
-                confirmButtonColor: '#10b981'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.fire({
-                        title: 'เพิ่มประวัติรายใหม่',
-                        html: `
-                            <div class="space-y-3 text-left">
-                                <div><label class="text-xs font-bold">เลข ปชช. 13 หลัก</label><input type="text" id="newCid" class="w-full px-3 py-2 border rounded-lg" value="${/^\d{13}$/.test(initialData) ? initialData : ''}"></div>
-                                <div><label class="text-xs font-bold">รหัส HN</label><input type="text" id="newHn" class="w-full px-3 py-2 border rounded-lg" value="${!/^\d{13}$/.test(initialData) ? initialData : ''}"></div>
-                                <div><label class="text-xs font-bold">คำนำหน้า (เช่น นาย, นาง, นางสาว)</label><input type="text" id="newPrefix" class="w-full px-3 py-2 border rounded-lg"></div>
-                                <div><label class="text-xs font-bold">ชื่อ</label><input type="text" id="newFname" class="w-full px-3 py-2 border rounded-lg"></div>
-                                <div><label class="text-xs font-bold">นามสกุล</label><input type="text" id="newLname" class="w-full px-3 py-2 border rounded-lg"></div>
-                            </div>
-                        `,
-                        showCancelButton: true,
-                        confirmButtonText: 'บันทึกข้อมูล',
-                        cancelButtonText: 'ยกเลิก',
-                        preConfirm: () => {
-                            return {
-                                cid: document.getElementById('newCid').value.trim(),
-                                hn: document.getElementById('newHn').value.trim(),
-                                prefix: document.getElementById('newPrefix').value.trim(),
-                                fname: document.getElementById('newFname').value.trim(),
-                                lname: document.getElementById('newLname').value.trim()
-                            }
-                        }
-                    }).then(async (formRes) => {
-                        if(formRes.isConfirmed) {
-                            const p = formRes.value;
-                            if(!p.cid && !p.hn) return Swal.fire('ผิดพลาด', 'ต้องระบุเลข ปชช. หรือ HN อย่างน้อย 1 อย่าง', 'error');
-                            
-                            // ใช้ cid หรือ hn เป็น document ID ชั่วคราว
-                            const docId = p.cid || p.hn;
-                            try {
-                                document.getElementById('loadingOverlay').style.display = 'flex';
-                                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'patients', docId);
-                                await setDoc(docRef, p);
-                                document.getElementById('loadingOverlay').style.display = 'none';
-                                
-                                currentPatient = p;
-                                processFoundPatient();
-                            } catch(e) {
-                                document.getElementById('loadingOverlay').style.display = 'none';
-                                Swal.fire('ผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
-                            }
-                        }
-                    });
-                }
-            });
-        }
-
-        function processFoundPatient() {
-            const cid = currentPatient.cid || '-';
+            const cid = currentPatient.cid;
             const currentYear = new Date().getFullYear();
-            const hasRegistered = queueData.find(q => q.cid === cid && cid !== '-' && new Date(q.timestamp).getFullYear() === currentYear);
+            const hasRegistered = queueData.find(q => q.cid === cid && new Date(q.timestamp).getFullYear() === currentYear);
             
             if (hasRegistered) {
                 Swal.fire({
-                    icon: 'error',
-                    title: 'ลงทะเบียนแล้ว',
-                    text: `ผู้รับบริการท่านนี้ ได้ทำรายการของปี ${currentYear} ไปแล้ว`,
-                    confirmButtonColor: '#ef4444'
+                    icon: 'error', title: 'ลงทะเบียนแล้ว',
+                    text: `ผู้รับบริการชื่อ ${currentPatient.prefix || ''}${currentPatient.fname} ${currentPatient.lname} ได้ทำรายการของปี ${currentYear} ไปแล้ว`
                 });
                 resetFormState();
                 return;
             }
 
+            showPatientForm();
+        }
+
+        function askAddNewPatient(query) {
+            Swal.fire({
+                title: 'ไม่พบประวัติในระบบ',
+                text: "ต้องการเพิ่มข้อมูลผู้รับบริการรายใหม่หรือไม่?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'เพิ่มผู้ป่วยใหม่',
+                cancelButtonText: 'ยกเลิก'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'เพิ่มข้อมูลผู้ป่วยใหม่',
+                        html: `
+                            <input id="newCid" class="swal2-input" placeholder="เลขบัตร ปชช. 13 หลัก" value="${query.length===13?query:''}">
+                            <input id="newHn" class="swal2-input" placeholder="รหัส HN" value="${query.length!==13?query:''}">
+                            <div class="flex space-x-2 w-full max-w-md mx-auto mt-4">
+                                <input id="newPrefix" class="swal2-input w-1/3 mt-0" placeholder="คำนำหน้า">
+                                <input id="newFname" class="swal2-input w-full mt-0" placeholder="ชื่อ">
+                            </div>
+                            <input id="newLname" class="swal2-input" placeholder="นามสกุล">
+                        `,
+                        confirmButtonText: 'บันทึกข้อมูล',
+                        preConfirm: () => {
+                            const cid = document.getElementById('newCid').value.trim();
+                            const hn = document.getElementById('newHn').value.trim();
+                            const fname = document.getElementById('newFname').value.trim();
+                            if(!cid || !fname) { Swal.showValidationMessage('กรุณากรอกเลข ปชช. และ ชื่อ'); return false; }
+                            return {
+                                cid: cid, hn: hn || cid,
+                                prefix: document.getElementById('newPrefix').value.trim(),
+                                fname: fname, lname: document.getElementById('newLname').value.trim()
+                            };
+                        }
+                    }).then(async (res) => {
+                        if (res.isConfirmed && auth.currentUser) {
+                            document.getElementById('loadingOverlay').style.display = 'flex';
+                            try {
+                                const newP = res.value;
+                                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'patients', newP.cid);
+                                await setDoc(docRef, newP);
+                                currentPatient = newP;
+                                document.getElementById('loadingOverlay').style.display = 'none';
+                                Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', showConfirmButton: false, timer:1000});
+                                showPatientForm();
+                            } catch (e) {
+                                document.getElementById('loadingOverlay').style.display = 'none';
+                                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+                            }
+                        }
+                    });
+                } else {
+                    resetFormState();
+                }
+            });
+        }
+
+        function showPatientForm() {
             const fullNameStr = `${currentPatient.prefix || ''}${currentPatient.fname || ''} ${currentPatient.lname || ''}`.trim();
             document.getElementById('displayFullName').innerText = fullNameStr;
-            document.getElementById('displayCid').innerText = currentPatient.cid ? formatCid(currentPatient.cid) : '-';
-            document.getElementById('displayHn').innerText = currentPatient.hn || '-';
+            document.getElementById('displayCid').innerText = currentPatient.cid;
+            document.getElementById('displayHn').innerText = currentPatient.hn;
             document.getElementById('patientInfoCard').classList.remove('hidden');
             
             const mainContainer = document.getElementById('mainContainer');
@@ -682,7 +625,13 @@
             rightColumn.classList.add('lg:col-span-8');
             
             setTimeout(() => { rightColumn.classList.remove('opacity-0'); rightColumn.classList.add('opacity-100'); }, 50);
-            if(window.innerWidth < 1024) { setTimeout(() => { rightColumn.scrollIntoView({ behavior: 'smooth' }); }, 100); }
+            if(window.innerWidth < 1024) setTimeout(() => rightColumn.scrollIntoView({ behavior: 'smooth' }), 100);
+
+            // รีเซ็ต Vitals
+            document.getElementById('vitalWeight').value = '';
+            document.getElementById('vitalHeight').value = '';
+            document.getElementById('vitalTemp').value = '';
+            document.getElementById('vitalBP').value = '';
 
             const selectEl = document.getElementById('vaccineSelect');
             if(selectEl.options.length === 2) { 
@@ -693,10 +642,10 @@
 
         function loadQuestionnaire() {
             const vaccineName = document.getElementById('vaccineSelect').value;
-            const elements = ['vitalsSection', 'questionnaireSection', 'decisionSection', 'submitSection', 'vaccineWarning'];
+            const sections = ['questionnaireSection', 'decisionSection', 'submitSection', 'vaccineWarning'];
             
             if(!vaccineName) {
-                elements.forEach(id => document.getElementById(id).classList.add('hidden'));
+                sections.forEach(id => document.getElementById(id).classList.add('hidden'));
                 return;
             }
 
@@ -705,7 +654,6 @@
             
             document.getElementById('vaccineDetailText').innerText = vaccine.detail || '-';
             document.getElementById('vaccineWarning').classList.remove('hidden');
-            document.getElementById('vitalsSection').classList.remove('hidden');
 
             const container = document.getElementById('questionsContainer');
             container.innerHTML = '';
@@ -732,13 +680,11 @@
                 `;
             });
 
-            document.getElementById('questionnaireSection').classList.remove('hidden');
-            document.getElementById('decisionSection').classList.remove('hidden');
-            document.getElementById('submitSection').classList.remove('hidden');
+            sections.slice(0,3).forEach(id => document.getElementById(id).classList.remove('hidden'));
         }
 
         async function submitForm() {
-            if(isSubmitting) return; // ป้องกันการกดเบิ้ล
+            if(isSubmitting) return; // กันกดเบิ้ล
             if(!currentPatient || !auth.currentUser) return;
 
             const vaccineName = document.getElementById('vaccineSelect').value;
@@ -752,18 +698,17 @@
                 answers.push({ q: vaccine.questions[i], a: selected.value });
             }
 
-            if(!allAnswered) {
-                Swal.fire({ icon: 'warning', text: 'กรุณาตอบแบบคัดกรองให้ครบทุกข้อ' });
-                return;
-            }
+            if(!allAnswered) { Swal.fire({ icon: 'warning', text: 'กรุณาตอบแบบคัดกรองให้ครบทุกข้อ' }); return; }
 
             const decision = document.querySelector('input[name="decision"]:checked');
-            if(!decision) {
-                Swal.fire({ icon: 'warning', text: 'กรุณาเลือกการแสดงความจำนง' });
-                return;
-            }
+            if(!decision) { Swal.fire({ icon: 'warning', text: 'กรุณาเลือกการแสดงความจำนง' }); return; }
 
-            // ดึงค่า Vitals
+            isSubmitting = true; // ล็อกปุ่ม
+            document.getElementById('loadingOverlay').style.display = 'flex';
+
+            const fullName = `${currentPatient.prefix || ''}${currentPatient.fname || ''} ${currentPatient.lname || ''}`.trim();
+            
+            // เก็บค่า Vitals
             const vitals = {
                 weight: document.getElementById('vitalWeight').value.trim(),
                 height: document.getElementById('vitalHeight').value.trim(),
@@ -771,23 +716,19 @@
                 bp: document.getElementById('vitalBP').value.trim()
             };
 
-            isSubmitting = true; // ล็อกปุ่ม
-            document.getElementById('loadingOverlay').style.display = 'flex';
-
-            const fullName = `${currentPatient.prefix || ''}${currentPatient.fname || ''} ${currentPatient.lname || ''}`.trim();
             const queueItem = {
-                cid: currentPatient.cid || '-',
-                hn: currentPatient.hn || '-',
+                cid: currentPatient.cid,
+                hn: currentPatient.hn,
                 name: fullName,
                 vaccine: vaccineName,
                 answers: answers,
                 decision: decision.value,
-                timestamp: new Date().toISOString(),
-                ...vitals // บันทึก vitals ลง DB
+                vitals: vitals,
+                timestamp: new Date().toISOString()
             };
             
             try {
-                const queueId = `Q_${Date.now()}_${currentPatient.hn || currentPatient.cid}`;
+                const queueId = `Q_${Date.now()}_${currentPatient.cid}`;
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue', queueId);
                 await setDoc(docRef, queueItem);
 
@@ -796,26 +737,18 @@
                 setTimeout(() => {
                     document.getElementById('loadingOverlay').style.display = 'none';
                     handlePrintOrSave(fullName, currentPatient.cid, currentPatient.hn, vaccineName, answers, decisionText, vitals);
-                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกสำเร็จ', showConfirmButton: false, timer: 2000 });
                     resetFormState();
                     document.getElementById('searchQuery').value = '';
-                    // เคลียร์ค่า Vitals ในฟอร์ม
-                    document.getElementById('vitalWeight').value = '';
-                    document.getElementById('vitalHeight').value = '';
-                    document.getElementById('vitalTemp').value = '';
-                    document.getElementById('vitalBP').value = '';
-                    
-                    isSubmitting = false; // ปลดล็อก
+                    isSubmitting = false; // ปลดล็อกปุ่ม
                 }, 500); 
 
             } catch (err) {
                 document.getElementById('loadingOverlay').style.display = 'none';
-                Swal.fire('ข้อผิดพลาด', 'บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่', 'error');
-                isSubmitting = false; // ปลดล็อกเมื่อเกิด error
+                Swal.fire('ข้อผิดพลาด', 'บันทึกข้อมูลไม่สำเร็จ', 'error');
+                isSubmitting = false;
             }
         }
 
-        // เช็คว่าเป็นมือถือหรือไม่
         function handlePrintOrSave(name, cid, hn, vaccineName, answers, decisionText, vitals = {}) {
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             if (isMobile) {
@@ -825,7 +758,7 @@
             }
         }
 
-        // สร้างเป็นไฟล์ภาพสำหรับมือถือ
+        // ระบบแปลงเป็นรูปภาพสำหรับมือถือ
         async function generateSlipImageMobile(name, cid, hn, vaccineName, answers, decisionText, vitals = {}) {
             document.getElementById('loadingOverlay').style.display = 'flex';
             
@@ -834,10 +767,10 @@
             const barcodeData = barcodeSetting === 'CID' ? cid : hn;
             const finalDecision = decisionText || 'ยินยอมรับการฉีดวัคซีน';
 
-            const wStr = vitals.weight ? `${vitals.weight} กก.` : '......................';
-            const hStr = vitals.height ? `${vitals.height} ซม.` : '......................';
-            const tStr = vitals.temp ? `${vitals.temp} °C` : '......................';
-            const bpStr = vitals.bp ? `${vitals.bp} mmHg` : '................................................';
+            const wStr = vitals.weight ? ` ${vitals.weight} กก.` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+            const hStr = vitals.height ? ` ${vitals.height} ซม.` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+            const tStr = vitals.temp ? ` ${vitals.temp} °C` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+            const bpStr = vitals.bp ? ` ${vitals.bp} mmHg` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
 
             let questionsHtml = '';
             let displayQuestions = answers;
@@ -851,26 +784,25 @@
                     const isYes = item.a === 'มี/ใช่';
                     const isNo = item.a === 'ไม่มี/ไม่ใช่';
                     questionsHtml += `
-                        <div style="margin-bottom: 8px; font-size: 17px; color: #111; font-weight: 500;">
-                            <div style="margin-bottom: 4px; line-height: 1.35;">${item.q}</div>
+                        <div style="margin-bottom: 9px; font-size: 19px; color: #111; font-weight: 500;">
+                            <div style="margin-bottom: 5px; line-height: 1.35;">${item.q}</div>
                             <div style="display: flex; gap: 40px; margin-left: 14px;">
-                                <span><span style="display:inline-block; width:15px; height:15px; border:2px solid #000; text-align:center; line-height:13px; font-size:12px; margin-right:6px; vertical-align:middle; font-weight:bold;">${isYes ? '✓' : ''}</span> มี/ใช่</span>
-                                <span><span style="display:inline-block; width:15px; height:15px; border:2px solid #000; text-align:center; line-height:13px; font-size:12px; margin-right:6px; vertical-align:middle; font-weight:bold;">${isNo ? '✓' : ''}</span> ไม่มี/ไม่ใช่</span>
+                                <span><span style="display:inline-block; width:16px; height:16px; border:2px solid #000; text-align:center; line-height:14px; font-size:14px; margin-right:6px; vertical-align:middle; font-weight:bold;">${isYes ? '✓' : ''}</span> มี/ใช่</span>
+                                <span><span style="display:inline-block; width:16px; height:16px; border:2px solid #000; text-align:center; line-height:14px; font-size:14px; margin-right:6px; vertical-align:middle; font-weight:bold;">${isNo ? '✓' : ''}</span> ไม่มี/ไม่ใช่</span>
                             </div>
                         </div>
                     `;
                 });
             }
 
-            // เลียนแบบ A5 แบบเป๊ะๆ
             const slipDiv = document.createElement('div');
             slipDiv.style.position = 'absolute';
             slipDiv.style.left = '-9999px';
             slipDiv.style.top = '0';
-            slipDiv.style.width = '559px'; 
+            slipDiv.style.width = '559px'; // ขนาดเป๊ะของ A5 แบบจำลอง
             slipDiv.style.height = '794px'; 
             slipDiv.style.backgroundColor = '#fff';
-            slipDiv.style.padding = '38px 45px';
+            slipDiv.style.padding = '35px 40px';
             slipDiv.style.boxSizing = 'border-box';
             slipDiv.style.fontFamily = "'Prompt', sans-serif";
             slipDiv.style.display = 'flex';
@@ -882,35 +814,36 @@
                 <div style="width: 100%;">
                     <div style="text-align: center; border-bottom: 2px solid #374151; padding-bottom: 8px; margin-bottom: 12px;">
                         <h2 style="font-size: 26px; font-weight: bold; margin: 0 0 3px 0;">โรงพยาบาลศรีสะเกษ</h2>
-                        <h3 style="font-size: 20px; font-weight: bold; margin: 0; color: #1f2937;">หลักฐานการแสดงความยินยอม</h3>
+                        <h3 style="font-size: 21px; font-weight: bold; margin: 0; color: #1f2937;">หลักฐานการแสดงความยินยอม</h3>
                         <p style="font-size: 16px; color: #4b5563; margin: 3px 0 0 0;">การรับบริการฉีดวัคซีนป้องกันโรคติดต่อ</p>
                     </div>
 
-                    <div style="font-size: 18px; margin-bottom: 10px; line-height: 1.4;">
+                    <div style="font-size: 19px; margin-bottom: 12px; line-height: 1.5;">
                         <div style="display: flex; justify-content: space-between;">
                             <span><b>ชื่อ-สกุล:</b> ${name}</span>
                             <span><b>รหัส HN:</b> ${hn || '-'}</span>
                         </div>
                         <div style="margin-top: 4px;"><b>วัคซีนที่รับ:</b> ${vaccineName}</div>
-                        <div style="margin-top: 8px; font-size: 16px; color: #1f2937; line-height: 1.6;">
+                        
+                        <div style="margin-top: 8px; font-size: 18px; color: #1f2937; line-height: 1.8;">
                             <div style="display: flex; justify-content: flex-start; gap: 12px;">
-                                <span><b>สัญญาณชีพ:</b> นน. <span style="display:inline-block; min-width:60px;">${wStr}</span></span>
-                                <span>|&nbsp;&nbsp;สก. <span style="display:inline-block; min-width:60px;">${hStr}</span></span>
-                                <span>|&nbsp;&nbsp;อุณหภูมิ <span style="display:inline-block; min-width:60px;">${tStr}</span></span>
+                                <span><b>สัญญาณชีพ:</b> นน.<span style="border-bottom: 1px dotted #666; display:inline-block; min-width:65px; text-align:center;">${wStr}</span></span>
+                                <span>|&nbsp;&nbsp;สก.<span style="border-bottom: 1px dotted #666; display:inline-block; min-width:65px; text-align:center;">${hStr}</span></span>
+                                <span>|&nbsp;&nbsp;อุณหภูมิ<span style="border-bottom: 1px dotted #666; display:inline-block; min-width:65px; text-align:center;">${tStr}</span></span>
                             </div>
-                            <div style="margin-top: 6px; border-top: 1px dotted #ccc; padding-top: 4px;">
-                                <b>ความดันโลหิต:</b> <span style="display:inline-block; min-width:200px;">${bpStr}</span>
+                            <div style="margin-top: 2px;">
+                                <span><b>ความดันโลหิต:</b><span style="border-bottom: 1px dotted #666; display:inline-block; min-width:180px; text-align:center;">${bpStr}</span></span>
                             </div>
                         </div>
                     </div>
 
                     <div style="margin-bottom: 10px;">
-                        <div style="font-size: 19px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px dashed #9ca3af; padding-bottom: 4px;">ผลการคัดกรองเบื้องต้น:</div>
+                        <div style="font-size: 20px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px dashed #9ca3af; padding-bottom: 4px;">ผลการคัดกรองเบื้องต้น:</div>
                         ${questionsHtml}
                     </div>
 
-                    <div style="border: 2px solid #374151; border-radius: 8px; padding: 12px; text-align: center; margin-top: 10px; background: #f9fafb;">
-                        <div style="font-size: 21px; font-weight: bold; ${finalDecision.includes('ไม่ยินยอม') ? 'color: #dc2626;' : 'color: #1d4ed8;'}">${finalDecision}</div>
+                    <div style="border: 2px solid #374151; border-radius: 8px; padding: 12px; text-align: center; margin-top: 15px; background: #f9fafb;">
+                        <div style="font-size: 22px; font-weight: bold; ${finalDecision.includes('ไม่ยินยอม') ? 'color: #dc2626;' : 'color: #1d4ed8;'}">${finalDecision}</div>
                     </div>
                 </div>
 
@@ -918,9 +851,9 @@
                     <div style="font-size: 16px; margin-bottom: 8px; line-height: 1.4;">
                         <div>ลงชื่อ ........................................................................ ผู้รับบริการ</div>
                         <div>( ${name} )</div>
-                        <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">พิมพ์เมื่อ: ${timeStr}</div>
+                        <div style="font-size: 14px; color: #6b7280; margin-top: 2px;">พิมพ์เมื่อ: ${timeStr}</div>
                     </div>
-                    <div style="display: flex; justify-content: center; margin-top: 2px;">
+                    <div style="display: flex; justify-content: center; margin-top: 4px;">
                         <svg id="slipBarcodeMobile"></svg>
                     </div>
                 </div>
@@ -930,10 +863,10 @@
             
             try {
                 JsBarcode(slipDiv.querySelector('#slipBarcodeMobile'), barcodeData, {
-                    format: "CODE128", width: 2, height: 40, displayValue: true, fontSize: 14, margin: 0
+                    format: "CODE128", width: 2, height: 44, displayValue: true, fontSize: 15, margin: 0
                 });
 
-                await new Promise(r => setTimeout(r, 400)); // ให้เวลาเรนเดอร์บาร์โค้ด
+                await new Promise(r => setTimeout(r, 400));
 
                 const canvas = await html2canvas(slipDiv, { scale: 2, useCORS: true, logging: false });
                 const imgData = canvas.toDataURL('image/png');
@@ -942,21 +875,41 @@
 
                 Swal.fire({
                     title: 'สร้างใบยินยอมสำเร็จ',
-                    html: '<p class="text-sm text-gray-500 mb-3">แตะค้างที่รูปภาพเพื่อบันทึก หรือกดปุ่มดาวน์โหลดด้านล่าง</p>',
+                    html: '<p class="text-sm text-gray-500 mb-3">กรุณา <b>แตะค้างที่รูปภาพ</b> เพื่อบันทึก หรือกดปุ่มด้านล่าง</p>',
                     imageUrl: imgData,
                     imageWidth: '100%',
                     imageAlt: 'Consent Slip',
                     showCancelButton: true,
-                    confirmButtonText: 'ดาวน์โหลดรูปลงเครื่อง',
+                    confirmButtonText: 'ดาวน์โหลด / แชร์รูปภาพ',
                     cancelButtonText: 'ปิด',
                     confirmButtonColor: '#3b82f6',
                     customClass: { image: 'border rounded-xl shadow-sm' }
                 }).then((result) => {
                     if(result.isConfirmed) {
-                        const link = document.createElement('a');
-                        link.download = `Consent_${hn||cid}_${Date.now()}.png`;
-                        link.href = imgData;
-                        link.click();
+                        canvas.toBlob(async (blob) => {
+                            if (!blob) return;
+                            const fileName = `Consent_${hn||cid}_${Date.now()}.png`;
+                            const file = new File([blob], fileName, { type: 'image/png' });
+
+                            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                try {
+                                    await navigator.share({
+                                        files: [file], title: 'ใบยินยอมฉีดวัคซีน'
+                                    });
+                                    return;
+                                } catch (err) { console.log('Share canceled'); }
+                            }
+
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = fileName;
+                            link.target = '_blank';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            setTimeout(() => URL.revokeObjectURL(url), 1000);
+                        }, 'image/png');
                     }
                 });
             } catch (e) {
@@ -967,17 +920,17 @@
             }
         }
 
-        // สร้างเป็นหน้าต่าง Print สำหรับ Computer
+        // ระบบหน้าต่างปริ้นท์สำหรับคอมพิวเตอร์ (ขนาด A5)
         function printSlipWindow(name, cid, hn, vaccineName, answers, decisionText, vitals = {}) {
             const now = new Date();
             const timeStr = `${now.toLocaleDateString('th-TH')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
             const barcodeData = barcodeSetting === 'CID' ? cid : hn;
             const finalDecision = decisionText || 'ยินยอมรับการฉีดวัคซีน';
 
-            const wStr = vitals.weight ? `${vitals.weight} กก.` : '......................';
-            const hStr = vitals.height ? `${vitals.height} ซม.` : '......................';
-            const tStr = vitals.temp ? `${vitals.temp} °C` : '......................';
-            const bpStr = vitals.bp ? `${vitals.bp} mmHg` : '................................................';
+            const wStr = vitals.weight ? ` ${vitals.weight} กก.` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+            const hStr = vitals.height ? ` ${vitals.height} ซม.` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+            const tStr = vitals.temp ? ` ${vitals.temp} °C` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+            const bpStr = vitals.bp ? ` ${vitals.bp} mmHg` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
 
             let questionsHtml = '';
             let displayQuestions = answers;
@@ -991,11 +944,11 @@
                     const isYes = item.a === 'มี/ใช่';
                     const isNo = item.a === 'ไม่มี/ไม่ใช่';
                     questionsHtml += `
-                        <div style="margin-bottom: 8px; font-size: 12.5pt; color: #111; font-weight: 500;">
-                            <div style="margin-bottom: 4px; line-height: 1.35;">${item.q}</div>
+                        <div style="margin-bottom: 9px; font-size: 13.5pt; color: #111; font-weight: 500;">
+                            <div style="margin-bottom: 5px; line-height: 1.35;">${item.q}</div>
                             <div style="display: flex; gap: 40px; margin-left: 14px;">
-                                <span><span style="display:inline-block; width:15px; height:15px; border:2px solid #000; text-align:center; line-height:13px; font-size:12pt; margin-right:6px; vertical-align:middle; font-weight:bold;">${isYes ? '✓' : ''}</span> มี/ใช่</span>
-                                <span><span style="display:inline-block; width:15px; height:15px; border:2px solid #000; text-align:center; line-height:13px; font-size:12pt; margin-right:6px; vertical-align:middle; font-weight:bold;">${isNo ? '✓' : ''}</span> ไม่มี/ไม่ใช่</span>
+                                <span><span style="display:inline-block; width:16px; height:16px; border:2px solid #000; text-align:center; line-height:14px; font-size:12pt; margin-right:6px; vertical-align:middle; font-weight:bold;">${isYes ? '✓' : ''}</span> มี/ใช่</span>
+                                <span><span style="display:inline-block; width:16px; height:16px; border:2px solid #000; text-align:center; line-height:14px; font-size:12pt; margin-right:6px; vertical-align:middle; font-weight:bold;">${isNo ? '✓' : ''}</span> ไม่มี/ไม่ใช่</span>
                             </div>
                         </div>
                     `;
@@ -1032,47 +985,47 @@
                 <body>
                     <div style="width: 100%;">
                         <div style="text-align: center; border-bottom: 2px solid #374151; padding-bottom: 8px; margin-bottom: 12px;">
-                            <h2 style="font-size: 19pt; font-weight: bold; margin: 0 0 3px 0;">โรงพยาบาลศรีสะเกษ</h2>
-                            <h3 style="font-size: 14pt; font-weight: bold; margin: 0; color: #1f2937;">หลักฐานการแสดงความยินยอม</h3>
-                            <p style="font-size: 11pt; color: #4b5563; margin: 3px 0 0 0;">การรับบริการฉีดวัคซีนป้องกันโรคติดต่อ</p>
+                            <h2 style="font-size: 20pt; font-weight: bold; margin: 0 0 3px 0;">โรงพยาบาลศรีสะเกษ</h2>
+                            <h3 style="font-size: 15pt; font-weight: bold; margin: 0; color: #1f2937;">หลักฐานการแสดงความยินยอม</h3>
+                            <p style="font-size: 12pt; color: #4b5563; margin: 3px 0 0 0;">การรับบริการฉีดวัคซีนป้องกันโรคติดต่อ</p>
                         </div>
 
-                        <div style="font-size: 12.5pt; margin-bottom: 10px; line-height: 1.4;">
+                        <div style="font-size: 14pt; margin-bottom: 12px; line-height: 1.5;">
                             <div style="display: flex; justify-content: space-between;">
                                 <span><b>ชื่อ-สกุล:</b> ${name}</span>
                                 <span><b>รหัส HN:</b> ${hn || '-'}</span>
                             </div>
                             <div style="margin-top: 4px;"><b>วัคซีนที่รับ:</b> ${vaccineName}</div>
                             
-                            <div style="margin-top: 8px; font-size: 11.5pt; color: #1f2937; line-height: 1.6;">
-                                <div style="display: flex; justify-content: flex-start; gap: 10px;">
-                                    <span><b>สัญญาณชีพ:</b> นน. <span style="display:inline-block; min-width:50px;">${wStr}</span></span>
-                                    <span>|&nbsp;&nbsp;สก. <span style="display:inline-block; min-width:50px;">${hStr}</span></span>
-                                    <span>|&nbsp;&nbsp;อุณหภูมิ <span style="display:inline-block; min-width:50px;">${tStr}</span></span>
+                            <div style="margin-top: 8px; font-size: 13pt; color: #1f2937; line-height: 1.8;">
+                                <div style="display: flex; justify-content: flex-start; gap: 12px;">
+                                    <span><b>สัญญาณชีพ:</b> นน.<span style="border-bottom: 1px dotted #666; display:inline-block; min-width:50px; text-align:center;">${wStr}</span></span>
+                                    <span>|&nbsp;&nbsp;สก.<span style="border-bottom: 1px dotted #666; display:inline-block; min-width:50px; text-align:center;">${hStr}</span></span>
+                                    <span>|&nbsp;&nbsp;อุณหภูมิ<span style="border-bottom: 1px dotted #666; display:inline-block; min-width:50px; text-align:center;">${tStr}</span></span>
                                 </div>
-                                <div style="margin-top: 6px; border-top: 1px dotted #ccc; padding-top: 4px;">
-                                    <b>ความดันโลหิต:</b> <span style="display:inline-block; min-width:180px;">${bpStr}</span>
+                                <div style="margin-top: 2px;">
+                                    <span><b>ความดันโลหิต:</b><span style="border-bottom: 1px dotted #666; display:inline-block; min-width:140px; text-align:center;">${bpStr}</span></span>
                                 </div>
                             </div>
                         </div>
 
                         <div style="margin-bottom: 10px;">
-                            <div style="font-size: 13.5pt; font-weight: bold; margin-bottom: 8px; border-bottom: 1px dashed #9ca3af; padding-bottom: 4px;">ผลการคัดกรองเบื้องต้น:</div>
+                            <div style="font-size: 14.5pt; font-weight: bold; margin-bottom: 10px; border-bottom: 1px dashed #9ca3af; padding-bottom: 4px;">ผลการคัดกรองเบื้องต้น:</div>
                             ${questionsHtml}
                         </div>
 
-                        <div style="border: 2px solid #374151; border-radius: 8px; padding: 12px; text-align: center; margin-top: 10px; background: #f9fafb;">
-                            <div style="font-size: 15pt; font-weight: bold; ${finalDecision.includes('ไม่ยินยอม') ? 'color: #dc2626;' : 'color: #1d4ed8;'}">${finalDecision}</div>
+                        <div style="border: 2px solid #374151; border-radius: 8px; padding: 12px; text-align: center; margin-top: 15px; background: #f9fafb;">
+                            <div style="font-size: 16.5pt; font-weight: bold; ${finalDecision.includes('ไม่ยินยอม') ? 'color: #dc2626;' : 'color: #1d4ed8;'}">${finalDecision}</div>
                         </div>
                     </div>
 
                     <div style="text-align: center; width: 100%; margin-top: 10px; padding-top: 6px;">
-                        <div style="font-size: 11.5pt; margin-bottom: 8px; line-height: 1.4;">
+                        <div style="font-size: 12.5pt; margin-bottom: 8px; line-height: 1.4;">
                             <div>ลงชื่อ ........................................................................ ผู้รับบริการ</div>
                             <div>( ${name} )</div>
-                            <div style="font-size: 9.5pt; color: #6b7280; margin-top: 2px;">พิมพ์เมื่อ: ${timeStr}</div>
+                            <div style="font-size: 10pt; color: #6b7280; margin-top: 2px;">พิมพ์เมื่อ: ${timeStr}</div>
                         </div>
-                        <div style="display: flex; justify-content: center; margin-top: 2px;">
+                        <div style="display: flex; justify-content: center; margin-top: 4px;">
                             <svg id="slipBarcode"></svg>
                         </div>
                     </div>
@@ -1080,12 +1033,9 @@
                     <script>
                         window.onload = function() {
                             JsBarcode("#slipBarcode", "${barcodeData}", {
-                                format: "CODE128", width: 1.8, height: 40, displayValue: true, fontSize: 11, margin: 0
+                                format: "CODE128", width: 1.8, height: 46, displayValue: true, fontSize: 12, margin: 0
                             });
-                            setTimeout(function() {
-                                window.print();
-                                window.close();
-                            }, 400);
+                            setTimeout(function() { window.print(); window.close(); }, 400);
                         };
                     <\/script>
                 </body>
@@ -1114,154 +1064,20 @@
             }, 500);
 
             document.getElementById('vaccineSelect').value = '';
-            ['vitalsSection', 'questionnaireSection', 'decisionSection', 'submitSection', 'vaccineWarning'].forEach(id => {
-                document.getElementById(id).classList.add('hidden');
-            });
+            document.getElementById('questionnaireSection').classList.add('hidden');
+            document.getElementById('decisionSection').classList.add('hidden');
+            document.getElementById('submitSection').classList.add('hidden');
+            document.getElementById('vaccineWarning').classList.add('hidden');
         }
-
-        function renderAdminQueue() {
-            const tbody = document.getElementById('adminQueueTable');
-            tbody.innerHTML = '';
-            
-            if(queueData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-gray-500">ยังไม่มีผู้เข้ารับบริการ</td></tr>';
-                return;
-            }
-
-            queueData.forEach((q, index) => {
-                const dateObj = new Date(q.timestamp);
-                const time = `${dateObj.toLocaleDateString('th-TH')} ${dateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
-                const badgeClass = q.decision === 'consent' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-                const decisionTxt = q.decision === 'consent' ? 'ยินยอม' : 'ไม่ยินยอม';
-                
-                tbody.innerHTML += `
-                    <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 font-bold text-blue-600">#${(index+1).toString().padStart(3,'0')}</td>
-                        <td class="px-6 py-4 text-xs whitespace-nowrap">${time} น.</td>
-                        <td class="px-6 py-4 font-bold text-blue-600">${q.hn}</td>
-                        <td class="px-6 py-4 font-medium text-gray-900">${q.name}</td>
-                        <td class="px-6 py-4">${q.vaccine}</td>
-                        <td class="px-6 py-4">
-                            <span class="px-3 py-1 rounded-full text-xs font-bold tracking-wide ${badgeClass}">${decisionTxt}</span>
-                        </td>
-                        <td class="px-6 py-4 space-x-2 flex items-center">
-                            <button onclick="printQueueItem('${q.id}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
-                                ปริ้น
-                            </button>
-                            <button onclick="editQueueItem('${q.id}')" class="bg-yellow-50 text-yellow-600 hover:bg-yellow-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
-                                แก้ไข
-                            </button>
-                            <button onclick="deleteQueue('${q.id}')" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
-                                ลบ
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        function printQueueItem(id) {
-            const q = queueData.find(item => item.id === id);
-            if (!q) return;
-            const decisionText = q.decision === 'consent' ? 'ยินยอมรับการฉีดวัคซีน' : 'ไม่ยินยอมรับการฉีดวัคซีน';
-            handlePrintOrSave(q.name, q.cid, q.hn, q.vaccine, q.answers, decisionText, { weight: q.weight, height: q.height, temp: q.temp, bp: q.bp });
-        }
-
-        function editQueueItem(id) {
-            const q = queueData.find(item => item.id === id);
-            if (!q) return;
-
-            let vaccineOptionsHtml = '';
-            vaccinesData.forEach(v => {
-                if(v.active) vaccineOptionsHtml += `<option value="${v.name}" ${v.name === q.vaccine ? 'selected' : ''}>${v.name}</option>`;
-            });
-
-            Swal.fire({
-                title: `แก้ไขข้อมูลคิว: ${q.name}`,
-                html: `
-                    <div class="text-left space-y-4">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1">เลือกวัคซีน:</label>
-                            <select id="swalEditVaccine" class="w-full px-3 py-2 border rounded-xl text-sm">${vaccineOptionsHtml}</select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1">การแสดงความจำนง:</label>
-                            <select id="swalEditDecision" class="w-full px-3 py-2 border rounded-xl text-sm">
-                                <option value="consent" ${q.decision === 'consent' ? 'selected' : ''}>ยินยอมรับการฉีดวัคซีน</option>
-                                <option value="decline" ${q.decision === 'decline' ? 'selected' : ''}>ไม่ยินยอมรับการฉีดวัคซีน</option>
-                            </select>
-                        </div>
-                    </div>
-                `,
-                showCancelButton: true,
-                confirmButtonText: 'บันทึกการแก้ไข',
-                confirmButtonColor: '#3b82f6',
-                preConfirm: () => ({ 
-                    newVaccine: document.getElementById('swalEditVaccine').value, 
-                    newDecision: document.getElementById('swalEditDecision').value 
-                })
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    try {
-                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue', id);
-                        await setDoc(docRef, { vaccine: result.value.newVaccine, decision: result.value.newDecision }, { merge: true });
-                        Swal.fire({ icon: 'success', title: 'แก้ไขข้อมูลสำเร็จ', showConfirmButton: false, timer: 1500 });
-                    } catch (error) {
-                        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถบันทึกได้', 'error');
-                    }
-                }
-            });
-        }
-
-        function deleteQueue(id) {
-            Swal.fire({
-                title: 'ยืนยันการลบข้อมูล?',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#ef4444',
-                confirmButtonText: 'ใช่, ลบข้อมูล'
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    try {
-                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'queue', id));
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ลบข้อมูลสำเร็จ', showConfirmButton: false, timer: 1500 });
-                    } catch (error) {
-                        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถลบข้อมูลได้', 'error');
-                    }
-                }
-            });
-        }
-
-        function clearQueue() {
-            Swal.fire({
-                title: 'ล้างข้อมูลคิวทั้งหมด?',
-                text: "ข้อมูลคิวในระบบจะถูกลบทิ้งทั้งหมด!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#ef4444',
-                confirmButtonText: 'ยืนยันล้างข้อมูล'
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    document.getElementById('loadingOverlay').style.display = 'flex';
-                    try {
-                        const batch = writeBatch(db);
-                        queueData.forEach(q => batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'queue', q.id)));
-                        await batch.commit();
-                    } catch (error) {}
-                    document.getElementById('loadingOverlay').style.display = 'none';
-                }
-            });
-        }
-
-        // ================= ADMIN & SETTINGS =================
 
         function showAdminLogin() {
             Swal.fire({
-                title: 'เข้าสู่ระบบเจ้าหน้าที่ (Admin)',
+                title: 'เข้าสู่ระบบตั้งค่าแอดมิน',
                 input: 'password',
-                inputAttributes: { autocapitalize: 'off', placeholder: 'รหัสผ่าน' },
+                inputAttributes: { autocapitalize: 'off', placeholder: 'รหัสผ่าน 1234' },
                 showCancelButton: true,
                 confirmButtonText: 'เข้าสู่ระบบ',
+                cancelButtonText: 'ยกเลิก',
                 confirmButtonColor: '#1f2937'
             }).then((result) => {
                 if (result.isConfirmed) {
@@ -1276,12 +1092,240 @@
             updateVaccineSelect(); 
         }
 
+        function renderAdminVaccines() {
+            const list = document.getElementById('adminVaccineList');
+            const bulkSelect = document.getElementById('bulkVaccineSelect');
+            list.innerHTML = '';
+            bulkSelect.innerHTML = '<option value="">-- กรุณาเลือกวัคซีน --</option>';
+
+            vaccinesData.forEach((v, index) => {
+                const isChecked = v.active ? 'checked' : '';
+                let questionsHtml = '';
+                v.questions.forEach(q => { questionsHtml += `<li class="text-xs text-gray-600 bg-gray-50 px-2.5 py-1 rounded-md mb-1">${q}</li>`; });
+
+                list.innerHTML += `
+                    <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="font-bold text-gray-800 text-base">${v.name}</span>
+                                <p class="text-xs text-gray-500 mt-0.5">รายละเอียด: ${v.detail || '-'}</p>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <button onclick="editVaccineModal(${index})" class="text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">แก้ไข</button>
+                                <button onclick="deleteVaccine(${index})" class="text-red-500 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">ลบ</button>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer" ${isChecked} onchange="toggleVaccine(${index})">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="border-t pt-3">
+                            <span class="text-xs font-bold text-gray-700 block mb-1.5">คำถามคัดกรอง (${v.questions.length} ข้อ):</span>
+                            <ul class="list-disc list-inside space-y-1">${questionsHtml}</ul>
+                        </div>
+                    </div>
+                `;
+                bulkSelect.innerHTML += `<option value="${v.name}">${v.name}</option>`;
+            });
+        }
+
+        async function toggleVaccine(index) {
+            if (!auth.currentUser) return;
+            vaccinesData[index].active = !vaccinesData[index].active;
+            const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
+            await setDoc(settingsRef, { vaccinesData: vaccinesData }, { merge: true });
+        }
+
+        async function saveVaccinesToCloud() {
+            if (!auth.currentUser) return;
+            const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
+            await setDoc(settingsRef, { vaccinesData: vaccinesData }, { merge: true });
+        }
+
+        function openAddVaccineModal() {
+            Swal.fire({
+                title: 'เพิ่มวัคซีนใหม่',
+                html: `
+                    <div class="text-left space-y-4">
+                        <div><label class="block text-xs font-bold text-gray-700 mb-1">ชื่อวัคซีน:</label><input type="text" id="swalName" class="w-full px-3 py-2 border rounded-xl text-sm"></div>
+                        <div><label class="block text-xs font-bold text-gray-700 mb-1">รายละเอียด:</label><input type="text" id="swalDetail" class="w-full px-3 py-2 border rounded-xl text-sm"></div>
+                        <div><label class="block text-xs font-bold text-gray-700 mb-1">คำถามคัดกรอง (บรรทัดละ 1 ข้อ):</label><textarea id="swalQuestions" rows="4" class="w-full px-3 py-2 border rounded-xl text-sm"></textarea></div>
+                    </div>
+                `,
+                showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#3b82f6',
+                preConfirm: () => {
+                    const name = document.getElementById('swalName').value.trim();
+                    if (!name) { Swal.showValidationMessage('กรุณากรอกชื่อวัคซีน'); return false; }
+                    const qText = document.getElementById('swalQuestions').value.trim();
+                    const questions = qText ? qText.split('\n').map(q => q.trim()).filter(q => q) : ["ท่านมีไข้หรือไม่?"];
+                    return { name, detail: document.getElementById('swalDetail').value.trim(), questions };
+                }
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    vaccinesData.push({ name: result.value.name, active: true, detail: result.value.detail, questions: result.value.questions });
+                    await saveVaccinesToCloud();
+                    Swal.fire({ icon: 'success', title: 'เพิ่มสำเร็จ', showConfirmButton: false, timer: 1500 });
+                }
+            });
+        }
+
+        function editVaccineModal(index) {
+            const v = vaccinesData[index];
+            Swal.fire({
+                title: `แก้ไข: ${v.name}`,
+                html: `
+                    <div class="text-left space-y-4">
+                        <div><label class="block text-xs font-bold text-gray-700 mb-1">ชื่อวัคซีน:</label><input type="text" id="swalName" value="${v.name}" class="w-full px-3 py-2 border rounded-xl text-sm"></div>
+                        <div><label class="block text-xs font-bold text-gray-700 mb-1">รายละเอียด:</label><input type="text" id="swalDetail" value="${v.detail || ''}" class="w-full px-3 py-2 border rounded-xl text-sm"></div>
+                        <div><label class="block text-xs font-bold text-gray-700 mb-1">คำถามคัดกรอง (บรรทัดละ 1 ข้อ):</label><textarea id="swalQuestions" rows="4" class="w-full px-3 py-2 border rounded-xl text-sm">${v.questions.join('\n')}</textarea></div>
+                    </div>
+                `,
+                showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#3b82f6',
+                preConfirm: () => {
+                    const name = document.getElementById('swalName').value.trim();
+                    if (!name) { Swal.showValidationMessage('กรุณากรอกชื่อ'); return false; }
+                    const qText = document.getElementById('swalQuestions').value.trim();
+                    return { name, detail: document.getElementById('swalDetail').value.trim(), questions: qText ? qText.split('\n').map(q => q.trim()).filter(q => q) : [] };
+                }
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    vaccinesData[index] = { ...vaccinesData[index], ...result.value };
+                    await saveVaccinesToCloud();
+                    Swal.fire({ icon: 'success', title: 'แก้ไขสำเร็จ', showConfirmButton: false, timer: 1500 });
+                }
+            });
+        }
+
+        async function deleteVaccine(index) {
+            Swal.fire({
+                title: 'ยืนยันลบวัคซีน?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'ลบเลย'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    vaccinesData.splice(index, 1);
+                    await saveVaccinesToCloud();
+                    Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', showConfirmButton: false, timer: 1500 });
+                }
+            });
+        }
+
+        function updateVaccineSelect() {
+            const select = document.getElementById('vaccineSelect');
+            select.innerHTML = '<option value="">-- กรุณาเลือกวัคซีน --</option>';
+            vaccinesData.forEach(v => {
+                if(v.active) select.innerHTML += `<option value="${v.name}">${v.name}</option>`;
+            });
+        }
+
+        function renderAdminQueue() {
+            const tbody = document.getElementById('adminQueueTable');
+            tbody.innerHTML = '';
+            
+            if(queueData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-gray-500">ยังไม่มีผู้เข้ารับบริการ</td></tr>';
+                return;
+            }
+
+            queueData.forEach((q, index) => {
+                const dateObj = new Date(q.timestamp);
+                const time = `${dateObj.toLocaleDateString('th-TH', {day:'2-digit',month:'2-digit',year:'2-digit'})} ${dateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
+                const badgeClass = q.decision === 'consent' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                const decisionTxt = q.decision === 'consent' ? 'ยินยอม' : 'ไม่ยินยอม';
+                
+                tbody.innerHTML += `
+                    <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 font-bold text-blue-600">#${(index+1).toString().padStart(3,'0')}</td>
+                        <td class="px-6 py-4 text-xs whitespace-nowrap">${time}</td>
+                        <td class="px-6 py-4 font-bold text-blue-600">${q.hn}</td>
+                        <td class="px-6 py-4 font-medium text-gray-900">${q.name}</td>
+                        <td class="px-6 py-4">${q.vaccine}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold tracking-wide ${badgeClass}">${decisionTxt}</span>
+                        </td>
+                        <td class="px-6 py-4 space-x-2 flex items-center">
+                            <button onclick="printQueueItem('${q.id}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm">ปริ้น</button>
+                            <button onclick="editQueueItem('${q.id}')" class="bg-yellow-50 text-yellow-600 hover:bg-yellow-100 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm">แก้ไข</button>
+                            <button onclick="deleteQueue('${q.id}')" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm">ลบ</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function printQueueItem(id) {
+            const q = queueData.find(item => item.id === id);
+            if (!q) return;
+            const decisionText = q.decision === 'consent' ? 'ยินยอมรับการฉีดวัคซีน' : 'ไม่ยินยอมรับการฉีดวัคซีน';
+            handlePrintOrSave(q.name, q.cid, q.hn, q.vaccine, q.answers, decisionText, q.vitals || {});
+        }
+
+        async function editQueueItem(id) {
+            const q = queueData.find(item => item.id === id);
+            if (!q) return;
+
+            let vaccineOptionsHtml = '';
+            vaccinesData.forEach(v => {
+                if(v.active) vaccineOptionsHtml += `<option value="${v.name}" ${v.name === q.vaccine ? 'selected' : ''}>${v.name}</option>`;
+            });
+
+            Swal.fire({
+                title: `แก้ไข: ${q.name}`,
+                html: `
+                    <div class="text-left space-y-4">
+                        <div><label class="block text-xs font-bold text-gray-700 mb-1">เลือกวัคซีน:</label><select id="swalEditVaccine" class="w-full px-3 py-2 border rounded-xl text-sm">${vaccineOptionsHtml}</select></div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">การแสดงความจำนง:</label>
+                            <select id="swalEditDecision" class="w-full px-3 py-2 border rounded-xl text-sm">
+                                <option value="consent" ${q.decision === 'consent' ? 'selected' : ''}>ยินยอม</option>
+                                <option value="decline" ${q.decision === 'decline' ? 'selected' : ''}>ไม่ยินยอม</option>
+                            </select>
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#3b82f6',
+                preConfirm: () => ({ newVaccine: document.getElementById('swalEditVaccine').value, newDecision: document.getElementById('swalEditDecision').value })
+            }).then(async (result) => {
+                if (result.isConfirmed && auth.currentUser) {
+                    try {
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue', id);
+                        await setDoc(docRef, { vaccine: result.value.newVaccine, decision: result.value.newDecision }, { merge: true });
+                        Swal.fire({ icon: 'success', title: 'สำเร็จ', showConfirmButton: false, timer: 1500 });
+                    } catch (error) { Swal.fire('ข้อผิดพลาด', 'ไม่สามารถบันทึกได้', 'error'); }
+                }
+            });
+        }
+
+        function deleteQueue(id) {
+            Swal.fire({ title: 'ยืนยันลบ?', text: "ผู้รับบริการคนนี้จะสามารถลงทะเบียนใหม่ได้", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'ลบเลย'
+            }).then(async (result) => {
+                if (result.isConfirmed && auth.currentUser) {
+                    try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'queue', id)); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ลบสำเร็จ', showConfirmButton: false, timer: 1500 }); }
+                    catch (error) { Swal.fire('ข้อผิดพลาด', 'ไม่สามารถลบได้', 'error'); }
+                }
+            });
+        }
+
+        function clearQueue() {
+            Swal.fire({ title: 'ล้างข้อมูลคิวทั้งหมด?', text: "ข้อมูลทั้งหมดจะถูกลบทิ้ง!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'ยืนยัน'
+            }).then(async (result) => {
+                if (result.isConfirmed && auth.currentUser) {
+                    document.getElementById('loadingOverlay').style.display = 'flex';
+                    try {
+                        const batch = writeBatch(db);
+                        queueData.forEach(q => { batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'queue', q.id)); });
+                        await batch.commit();
+                    } catch (error) { console.error(error); }
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                }
+            });
+        }
+
         async function saveBarcodeSetting(val) {
+            if (!auth.currentUser) return;
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), { barcodeSetting: val }, { merge: true });
         }
 
         function downloadExcelTemplate() {
-            const templateData = [{ "cid": "1111111111111", "hn": "00123", "prefix": "นาย", "fname": "สมชาย", "lname": "รักชาติ" }];
+            const templateData = [{ "cid": "1111111111111", "hn": "HN-00123", "prefix": "นาย", "fname": "สมชาย", "lname": "รักชาติ" }];
             const ws = XLSX.utils.json_to_sheet(templateData);
             ws['!cols'] = [{wch: 20}, {wch: 15}, {wch: 10}, {wch: 20}, {wch: 20}];
             const wb = XLSX.utils.book_new();
@@ -1291,7 +1335,8 @@
 
         async function handleExcelUpload(e) {
             const file = e.target.files[0];
-            if(!file) return;
+            if(!file || !auth.currentUser) return;
+
             const reader = new FileReader();
             reader.onload = async function(e) {
                 const data = new Uint8Array(e.target.result);
@@ -1307,21 +1352,16 @@
                             prefix: String(row.prefix || row.Prefix || row.คำนำหน้า || ''),
                             fname: String(row.fname || row.Fname || row.ชื่อ || row.Name || ''),
                             lname: String(row.lname || row.Lname || row.นามสกุล || row.สกุล || row.Surname || '')
-                        })).filter(r => r.cid.length === 13 || r.hn !== '');
+                        })).filter(r => r.cid.length === 13);
 
                         for (let i = 0; i < validPatients.length; i += 400) {
                             const chunk = validPatients.slice(i, i + 400);
                             const batch = writeBatch(db);
-                            chunk.forEach(patient => {
-                                const id = patient.cid.length === 13 ? patient.cid : patient.hn;
-                                batch.set(doc(db, 'artifacts', appId, 'public', 'data', 'patients', id), patient);
-                            });
+                            chunk.forEach(p => { batch.set(doc(db, 'artifacts', appId, 'public', 'data', 'patients', p.cid), p); });
                             await batch.commit();
                         }
                         Swal.fire({ icon: 'success', title: 'นำเข้าสำเร็จ', text: `นำเข้า ${validPatients.length} รายการ` });
-                    } catch (error) {
-                        Swal.fire('ผิดพลาด', 'บันทึกไม่สำเร็จ', 'error');
-                    }
+                    } catch (error) { Swal.fire('ข้อผิดพลาด', 'บันทึกไม่สำเร็จ', 'error'); }
                     document.getElementById('loadingOverlay').style.display = 'none';
                 }
             };
@@ -1329,196 +1369,78 @@
             e.target.value = ''; 
         }
 
-        function updateDbCount() {
-            document.getElementById('dbCount').innerText = dbData.length.toLocaleString();
-        }
-
-        // ================= VACCINE MANAGEMENT =================
-
-        function renderAdminVaccines() {
-            const list = document.getElementById('adminVaccineList');
-            const bulkSelect = document.getElementById('bulkVaccineSelect');
-            list.innerHTML = '';
-            bulkSelect.innerHTML = '<option value="">-- กรุณาเลือกวัคซีน --</option>';
-
-            vaccinesData.forEach((v, index) => {
-                const isChecked = v.active ? 'checked' : '';
-                let questionsHtml = '';
-                v.questions.forEach(q => { questionsHtml += `<li class="text-xs bg-gray-50 px-2.5 py-1 rounded-md mb-1">${q}</li>`; });
-
-                list.innerHTML += `
-                    <div class="bg-white border rounded-2xl p-5 shadow-sm space-y-3">
-                        <div class="flex justify-between">
-                            <div><span class="font-bold">${v.name}</span><p class="text-xs text-gray-500">${v.detail || '-'}</p></div>
-                            <div class="flex space-x-3">
-                                <button onclick="editVaccineModal(${index})" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-xs font-bold">แก้ไข</button>
-                                <button onclick="deleteVaccine(${index})" class="text-red-500 bg-red-50 px-3 py-1.5 rounded-lg text-xs font-bold">ลบ</button>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" class="sr-only peer" ${isChecked} onchange="toggleVaccine(${index})">
-                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="border-t pt-3">
-                            <ul class="list-disc list-inside space-y-1">${questionsHtml}</ul>
-                        </div>
-                    </div>
-                `;
-                bulkSelect.innerHTML += `<option value="${v.name}">${v.name}</option>`;
-            });
-        }
-
-        async function toggleVaccine(index) {
-            vaccinesData[index].active = !vaccinesData[index].active;
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), { vaccinesData }, { merge: true });
-        }
-
-        function openAddVaccineModal() {
-            Swal.fire({
-                title: 'เพิ่มวัคซีนใหม่',
-                html: `
-                    <div class="text-left space-y-4">
-                        <div><label class="block text-xs font-bold">ชื่อวัคซีน:</label><input type="text" id="swalName" class="w-full px-3 py-2 border rounded-xl text-sm"></div>
-                        <div><label class="block text-xs font-bold">รายละเอียด:</label><input type="text" id="swalDetail" class="w-full px-3 py-2 border rounded-xl text-sm"></div>
-                        <div><label class="block text-xs font-bold">คำถาม (บรรทัดละ 1 ข้อ):</label><textarea id="swalQuestions" rows="4" class="w-full px-3 py-2 border rounded-xl text-sm"></textarea></div>
-                    </div>
-                `,
-                showCancelButton: true,
-                confirmButtonText: 'บันทึก',
-                confirmButtonColor: '#3b82f6',
-                preConfirm: () => {
-                    const name = document.getElementById('swalName').value.trim();
-                    if (!name) return Swal.showValidationMessage('กรุณากรอกชื่อวัคซีน');
-                    const questions = document.getElementById('swalQuestions').value.trim().split('\n').map(q => q.trim()).filter(q => q);
-                    return { name, detail: document.getElementById('swalDetail').value.trim(), questions: questions.length ? questions : ["กรุณาตอบคำถามคัดกรอง"] };
-                }
-            }).then(async (res) => {
-                if (res.isConfirmed) {
-                    vaccinesData.push({ name: res.value.name, active: true, detail: res.value.detail, questions: res.value.questions });
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), { vaccinesData }, { merge: true });
-                }
-            });
-        }
-
-        function editVaccineModal(index) {
-            const v = vaccinesData[index];
-            Swal.fire({
-                title: `แก้ไข: ${v.name}`,
-                html: `
-                    <div class="text-left space-y-4">
-                        <div><label class="block text-xs font-bold">ชื่อวัคซีน:</label><input type="text" id="swalName" value="${v.name}" class="w-full px-3 py-2 border rounded-xl text-sm"></div>
-                        <div><label class="block text-xs font-bold">รายละเอียด:</label><input type="text" id="swalDetail" value="${v.detail || ''}" class="w-full px-3 py-2 border rounded-xl text-sm"></div>
-                        <div><label class="block text-xs font-bold">คำถาม (บรรทัดละ 1 ข้อ):</label><textarea id="swalQuestions" rows="4" class="w-full px-3 py-2 border rounded-xl text-sm">${v.questions.join('\n')}</textarea></div>
-                    </div>
-                `,
-                showCancelButton: true,
-                confirmButtonText: 'บันทึกการแก้ไข',
-                confirmButtonColor: '#3b82f6',
-                preConfirm: () => {
-                    const name = document.getElementById('swalName').value.trim();
-                    if (!name) return Swal.showValidationMessage('กรุณากรอกชื่อวัคซีน');
-                    return { name, detail: document.getElementById('swalDetail').value.trim(), questions: document.getElementById('swalQuestions').value.trim().split('\n').map(q => q.trim()).filter(q => q) };
-                }
-            }).then(async (res) => {
-                if (res.isConfirmed) {
-                    vaccinesData[index].name = res.value.name;
-                    vaccinesData[index].detail = res.value.detail;
-                    vaccinesData[index].questions = res.value.questions;
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), { vaccinesData }, { merge: true });
-                }
-            });
-        }
-
-        async function deleteVaccine(index) {
-            Swal.fire({
-                title: 'ยืนยันการลบ?',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#ef4444'
-            }).then(async (res) => {
-                if (res.isConfirmed) {
-                    vaccinesData.splice(index, 1);
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), { vaccinesData }, { merge: true });
-                }
-            });
-        }
-
-        function updateVaccineSelect() {
-            const select = document.getElementById('vaccineSelect');
-            select.innerHTML = '<option value="">-- กรุณาเลือกวัคซีน --</option>';
-            vaccinesData.forEach(v => { if(v.active) select.innerHTML += `<option value="${v.name}">${v.name}</option>`; });
-        }
-
-        // ================= BULK PRINT =================
+        function updateDbCount() { document.getElementById('dbCount').innerText = dbData.length.toLocaleString(); }
 
         function handlePrintUpload(e) {
             const file = e.target.files[0];
             if(!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
-                const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
                 const excelRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                
                 if(excelRows.length > 0) {
                     printDataList = excelRows.map(row => ({
                         cid: String(row.cid || row.CID || row.ID || '').replace(/[^0-9]/g, ''),
                         hn: String(row.hn || row.HN || ''),
-                        prefix: String(row.prefix || row.Prefix || ''),
-                        fname: String(row.fname || row.Fname || row.ชื่อ || ''),
-                        lname: String(row.lname || row.Lname || row.นามสกุล || '')
-                    })).filter(r => r.cid.length === 13 || r.hn !== '');
-
-                    const tbody = document.getElementById('bulkPrintTable');
-                    tbody.innerHTML = '';
-                    printDataList.forEach((p, idx) => {
-                        tbody.innerHTML += `
-                            <tr class="border-b">
-                                <td class="px-6 py-3">${p.cid}</td><td class="px-6 py-3">${p.hn}</td><td class="px-6 py-3">${p.prefix}${p.fname} ${p.lname}</td>
-                                <td class="px-6 py-3"><button onclick="printSingleForm(${idx})" class="bg-gray-200 px-3 py-1 rounded text-xs font-bold">พิมพ์</button></td>
-                            </tr>`;
-                    });
-                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `พร้อมพิมพ์ ${printDataList.length} รายการ`, showConfirmButton: false, timer: 3000 });
+                        prefix: String(row.prefix || row.Prefix || row.คำนำหน้า || ''),
+                        fname: String(row.fname || row.Fname || row.ชื่อ || row.Name || ''),
+                        lname: String(row.lname || row.Lname || row.นามสกุล || row.สกุล || row.Surname || '')
+                    })).filter(r => r.cid.length === 13);
+                    renderBulkPrintTable();
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `พร้อมพิมพ์ ${printDataList.length} รายการ`, showConfirmButton: false, timer: 2000 });
                 }
             };
             reader.readAsArrayBuffer(file);
             e.target.value = ''; 
         }
 
-        function printSingleForm(index) {
-            const vaccineName = document.getElementById('bulkVaccineSelect').value;
-            if(!vaccineName) return Swal.fire({icon: 'warning', text: 'เลือกวัคซีนที่ต้องการพิมพ์ในฟอร์ม'});
-            const p = printDataList[index];
-            handlePrintOrSave(`${p.prefix||''}${p.fname||''} ${p.lname||''}`.trim(), p.cid, p.hn, vaccineName, [], "ยินยอมรับการฉีดวัคซีน", {});
+        function renderBulkPrintTable() {
+            const tbody = document.getElementById('bulkPrintTable');
+            tbody.innerHTML = '';
+            if(printDataList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">ยังไม่ได้อัปโหลด</td></tr>'; return;
+            }
+            printDataList.forEach((p, idx) => {
+                const fullName = `${p.prefix || ''}${p.fname || ''} ${p.lname || ''}`.trim();
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-6 py-3">${p.cid}</td><td class="px-6 py-3">${p.hn}</td><td class="px-6 py-3">${fullName}</td>
+                        <td class="px-6 py-3"><button onclick="printSingleForm(${idx})" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded text-xs font-bold">พิมพ์</button></td>
+                    </tr>
+                `;
+            });
         }
 
-        function printBulkForms() {
+        function printSingleForm(index) {
             const vaccineName = document.getElementById('bulkVaccineSelect').value;
-            if(!vaccineName) return Swal.fire({icon: 'warning', text: 'เลือกชนิดวัคซีนที่ต้องการพิมพ์'});
-            if(printDataList.length === 0) return Swal.fire({icon: 'warning', text: 'ยังไม่มีรายชื่ออัปโหลด'});
+            if(!vaccineName) { Swal.fire({icon: 'warning', text: 'เลือกวัคซีนก่อน'}); return; }
+            const p = printDataList[index];
+            const name = `${p.prefix || ''}${p.fname || ''} ${p.lname || ''}`.trim();
+            handlePrintOrSave(name, p.cid, p.hn, vaccineName, [], "ยินยอมรับการฉีดวัคซีน", {});
+        }
 
-            Swal.fire({
-                title: 'ยืนยันการพิมพ์',
-                text: `สั่งพิมพ์ทั้งหมด ${printDataList.length} หน้า`,
-                icon: 'question',
-                showCancelButton: true
+        async function printBulkForms() {
+            const vaccineName = document.getElementById('bulkVaccineSelect').value;
+            if(!vaccineName || printDataList.length === 0) { Swal.fire({icon: 'warning', text: 'เลือกวัคซีนและอัปโหลดไฟล์ก่อน'}); return; }
+
+            Swal.fire({ title: 'ยืนยันพิมพ์', text: `พิมพ์ทั้งหมด ${printDataList.length} หน้า?`, icon: 'question', showCancelButton: true, confirmButtonText: 'พิมพ์'
             }).then(async (result) => {
                 if (result.isConfirmed) {
                     document.getElementById('loadingOverlay').style.display = 'flex';
                     document.getElementById('adminModal').classList.add('hidden'); 
                     for (let i = 0; i < printDataList.length; i++) {
                         const p = printDataList[i];
-                        printSlipWindow(`${p.prefix||''}${p.fname||''} ${p.lname||''}`.trim(), p.cid, p.hn, vaccineName, [], "ยินยอมรับการฉีดวัคซีน", {});
+                        const name = `${p.prefix || ''}${p.fname || ''} ${p.lname || ''}`.trim();
+                        printSlipWindow(name, p.cid, p.hn, vaccineName, [], "ยินยอมรับการฉีดวัคซีน", {});
                         await new Promise(r => setTimeout(r, 600));
                     }
                     document.getElementById('loadingOverlay').style.display = 'none';
                     document.getElementById('adminModal').classList.remove('hidden'); 
-                    Swal.fire('สำเร็จ', 'ส่งคำสั่งพิมพ์ทั้งหมดเรียบร้อย', 'success');
+                    Swal.fire('สำเร็จ', 'ส่งคำสั่งพิมพ์เรียบร้อยแล้ว', 'success');
                 }
             });
-        }
-
-        function formatCid(cid) {
-            if(!cid || cid.length !== 13) return cid;
-            return `${cid.substring(0,1)}-${cid.substring(1,5)}-${cid.substring(5,10)}-${cid.substring(10,12)}-${cid.substring(12,13)}`;
         }
     </script>
 </body>
