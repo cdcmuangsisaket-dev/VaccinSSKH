@@ -141,10 +141,10 @@
                             
                             <div class="space-y-5">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">เลขประจำตัวประชาชน 13 หลัก</label>
-                                    <input type="text" id="searchQuery" maxlength="13" 
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">เลขประจำตัวประชาชน 13 หลัก หรือ รหัส HN</label>
+                                    <input type="text" id="searchQuery" 
                                         class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-xl text-center shadow-sm"
-                                        placeholder="กรอกเลข 13 หลัก">
+                                        placeholder="กรอกเลข 13 หลัก หรือ HN">
                                 </div>
                                 <button onclick="searchPatient()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-2xl shadow-md transition-colors flex items-center justify-center text-lg">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -617,17 +617,28 @@
             }
 
             const query = document.getElementById('searchQuery').value.trim();
-            const numericQuery = query.replace(/[^0-9]/g, '');
 
-            if(!query || numericQuery.length !== 13) {
-                Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: 'กรุณากรอกเลขประจำตัวประชาชน 13 หลักให้ถูกต้อง', confirmButtonColor: '#3b82f6' });
+            if(!query) {
+                Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: 'กรุณากรอกเลขประจำตัวประชาชน 13 หลัก หรือ รหัส HN', confirmButtonColor: '#3b82f6' });
                 return;
             }
 
-            currentPatient = dbData.find(p => p.cid === numericQuery);
+            const numericQuery = query.replace(/[^0-9]/g, '');
+            const queryHnClean = query.replace(/^0+/, '').toLowerCase();
+
+            currentPatient = dbData.find(p => {
+                // 1. ค้นหาจากเลขบัตรประชาชน 13 หลัก
+                if (numericQuery.length === 13 && p.cid === numericQuery) return true;
+                
+                // 2. ค้นหาจากรหัส HN (ตัดเลข 0 ด้านหน้าออกทั้งคู่ เพื่อให้ค้นหาเจอแม้จะกรอก 0 ไม่ครบ)
+                const dbHnClean = String(p.hn || '').trim().replace(/^0+/, '').toLowerCase();
+                if (dbHnClean && dbHnClean === queryHnClean) return true;
+
+                return false;
+            });
 
             if(!currentPatient) {
-                Swal.fire({ icon: 'info', title: 'ไม่พบข้อมูล', text: 'ไม่พบเลขประจำตัวประชาชนนี้ในระบบ กรุณาตรวจสอบความถูกต้อง', confirmButtonColor: '#3b82f6' });
+                Swal.fire({ icon: 'info', title: 'ไม่พบข้อมูล', text: 'ไม่พบเลขประจำตัวประชาชน หรือรหัส HN นี้ในระบบ กรุณาตรวจสอบความถูกต้อง', confirmButtonColor: '#3b82f6' });
                 resetFormState();
                 return;
             }
