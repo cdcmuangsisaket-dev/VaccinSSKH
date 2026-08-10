@@ -502,6 +502,7 @@
         let printDataList = []; 
         let currentPatient = null; 
         let barcodeSetting = 'HN'; 
+        let isSubmitting = false; // เพิ่มตัวแปรสำหรับป้องกันการกดปุ่มซ้ำ
 
         window.switchTab = switchTab;
         window.requestQueueTab = requestQueueTab;
@@ -846,6 +847,7 @@
         }
 
         async function submitForm() {
+            if(isSubmitting) return; // ถ้ากำลังบันทึกอยู่ให้หยุดการทำงานทันที (บล็อกการกดเบิ้ล)
             if(!currentPatient || !auth.currentUser) return;
 
             const vaccineName = document.getElementById('vaccineSelect').value;
@@ -875,6 +877,7 @@
                 return;
             }
 
+            isSubmitting = true; // ล็อกระบบทันทีเมื่อผ่านการตรวจสอบข้อมูลครบแล้ว
             document.getElementById('loadingOverlay').style.display = 'flex';
 
             const timestamp = new Date().toISOString();
@@ -906,12 +909,14 @@
                     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกและสั่งพิมพ์เรียบร้อย', showConfirmButton: false, timer: 2000 });
                     resetFormState();
                     document.getElementById('searchQuery').value = '';
+                    isSubmitting = false; // ปลดล็อกระบบเมื่อทำงานทุกอย่างเสร็จสมบูรณ์
                 }, 500); 
 
             } catch (err) {
                 console.error(err);
                 document.getElementById('loadingOverlay').style.display = 'none';
                 Swal.fire('ข้อผิดพลาด', 'บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่', 'error');
+                isSubmitting = false; // ปลดล็อกระบบหากเกิด Error
             }
         }
 
