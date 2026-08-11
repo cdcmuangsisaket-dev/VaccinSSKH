@@ -621,14 +621,17 @@
             const needsLname = !currentPatient.lname;
             const needsPhone = !currentPatient.phone || currentPatient.phone.length !== 4;
 
+            const pName = `${currentPatient.prefix || ''}${currentPatient.fname || ''} ${currentPatient.lname || ''}`.trim() || '-';
+
             // สร้างแบบฟอร์มเฉพาะส่วนที่ขาด
             let htmlForm = `
                 <div class="text-left space-y-3 mt-4">
                     <div class="p-3 bg-red-50 text-red-800 text-xs rounded-xl border border-red-200 mb-2 leading-relaxed">
                         <b>แจ้งเตือน:</b> พบข้อมูลประวัติในระบบ แต่ยังขาดข้อมูลบางส่วน กรุณาเติมข้อมูลให้ครบถ้วนก่อนดำเนินการต่อ
                     </div>
-                    <div>
-                        <label class="text-sm font-bold text-gray-700">อ้างอิงประวัติ: <span class="text-blue-600">${currentPatient.cid || currentPatient.hn || '-'}</span></label>
+                    <div class="mb-2">
+                        <label class="block text-sm font-bold text-gray-700">อ้างอิงประวัติ: <span class="text-blue-600">${currentPatient.cid || currentPatient.hn || '-'}</span></label>
+                        <label class="block text-sm font-bold text-gray-700 mt-1">ชื่อ-สกุล: <span class="text-gray-900">${pName}</span></label>
                     </div>
             `;
 
