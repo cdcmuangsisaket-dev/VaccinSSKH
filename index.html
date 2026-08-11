@@ -336,7 +336,7 @@
                 <div class="border rounded-xl p-5">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="font-bold text-gray-800 text-lg">1. นำเข้าฐานข้อมูลประชากร</h3>
-                        <button onclick="downloadExcelTemplate()" class="text-blue-600 hover:text-blue-800 text-sm flex items-center font-medium bg-blue-50 px-3 py-1.5 rounded-lg">
+                        <button onclick="downloadExcelTemplate()" class="text-blue-600 hover:text-blue-800 text-sm flex items-center font-medium bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                             </svg> โหลดเทมเพลต Excel
@@ -373,6 +373,36 @@
                         </button>
                     </div>
                     <div id="adminVaccineList" class="space-y-4"></div>
+                </div>
+
+                <!-- พิมพ์ใบยินยอมแบบกลุ่ม (Batch Print) -->
+                <div class="border-2 border-indigo-200 bg-indigo-50 rounded-xl p-5">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-indigo-900 text-lg">4. พิมพ์ใบยินยอมล่วงหน้า (Batch Print)</h3>
+                        <button onclick="downloadBatchPrintTemplate()" class="text-indigo-600 hover:text-indigo-800 text-sm flex items-center font-medium bg-indigo-100/50 px-3 py-1.5 rounded-lg transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg> โหลดเทมเพลต Excel
+                        </button>
+                    </div>
+                    <p class="text-xs text-indigo-700 mb-4">อัปโหลดไฟล์ Excel รายชื่อเพื่อสั่งพิมพ์ใบยินยอมรวดเดียว (ข้อมูลจะไม่ถูกบันทึกลงฐานข้อมูล)</p>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">เลือกวัคซีนที่จะพิมพ์ในใบ <span class="text-red-500">*</span></label>
+                            <select id="batchVaccineSelect" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white shadow-sm">
+                                <!-- ตัวเลือกวัคซีนจะถูกใส่เข้ามาอัตโนมัติ -->
+                            </select>
+                        </div>
+                        
+                        <div class="border-2 border-dashed border-indigo-300 rounded-xl p-6 text-center bg-white hover:bg-indigo-100 transition-colors cursor-pointer relative">
+                            <input type="file" id="batchExcelUpload" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleBatchPrintUpload(event)">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-indigo-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                            </svg>
+                            <p class="text-indigo-700 font-medium">คลิกเพื่ออัปโหลด <span class="font-normal text-sm text-indigo-600">ไฟล์ Excel แล้วสั่งพิมพ์ทันที</span></p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -438,6 +468,8 @@
         window.adminSearchPatientDb = adminSearchPatientDb;
         window.adminEditPatient = adminEditPatient;
         window.adminDeletePatient = adminDeletePatient;
+        window.handleBatchPrintUpload = handleBatchPrintUpload; 
+        window.downloadBatchPrintTemplate = downloadBatchPrintTemplate; // ลงทะเบียนฟังก์ชันใหม่
 
         signInAnonymously(auth).then((userCredential) => {
             console.log("Logged in Anonymously");
@@ -613,7 +645,7 @@
             proceedToQuestionnaire();
         }
 
-        // ฟังก์ชันใหม่: แสดงป๊อปอัปให้เติมข้อมูลที่ขาด
+        // แสดงป๊อปอัปให้เติมข้อมูลที่ขาด
         async function promptForMissingData() {
             // เช็คว่าข้อมูลส่วนไหนขาดหายไปบ้าง
             const needsPrefix = !currentPatient.prefix;
@@ -744,14 +776,14 @@
             }
         }
 
-        // ฟังก์ชันแยกออกมาเพื่อจัด UI เปิดหน้า 2 (ย้ายโค้ดเดิมมาจาก checkQueueAndProceed)
+        // ฟังก์ชันแยกออกมาเพื่อจัด UI เปิดหน้า 2 
         function proceedToQuestionnaire() {
             const fullNameStr = `${currentPatient.prefix || ''}${currentPatient.fname || ''} ${currentPatient.lname || ''}`.trim();
             document.getElementById('displayFullName').innerText = fullNameStr;
             document.getElementById('displayCid').innerText = formatCid(currentPatient.cid);
             document.getElementById('displayHn').innerText = currentPatient.hn || '-';
             
-            // แสดงเบอร์โทรหน่วยงานในการ์ดประวัติด้วย ถ้ายังไม่มี ID displayPhone ให้สร้างไว้ในการ์ด
+            // แสดงเบอร์โทรหน่วยงานในการ์ดประวัติด้วย
             const phoneDisplay = document.getElementById('displayPhone');
             if (phoneDisplay) phoneDisplay.innerText = currentPatient.phone || '-';
 
@@ -953,7 +985,6 @@
             phoneInput.value = '';
             phoneInput.readOnly = false;
             phoneInput.classList.remove('bg-gray-100', 'text-gray-600');
-            // ไม่ควรไปรีเซ็ต prefix เพราะผู้ใช้อาจจะตั้งใจเลือกไว้ก่อนแล้ว
         };
 
         function loadQuestionnaire() {
@@ -1081,7 +1112,7 @@
                 const isYes = item.a === 'มี/ใช่';
                 const isNo = item.a === 'ไม่มี/ไม่ใช่';
                 questionsHtml += `
-                    <div style="margin-bottom: 10px; font-size: 16px; color: #111; font-weight: 500;">
+                    <div style="margin-bottom: 8px; font-size: 15px; color: #111; font-weight: 500;">
                         <div style="margin-bottom: 3px; line-height: 1.3;">${item.q}</div>
                         <div style="display: flex; gap: 30px; margin-left: 20px;">
                             <div style="display: flex; align-items: center;">
@@ -1127,7 +1158,7 @@
                         <p style="font-size: 14px; color: #4b5563; margin: 3px 0 0 0;">การรับบริการฉีดวัคซีนป้องกันโรคติดต่อ</p>
                     </div>
 
-                    <div style="font-size: 16px; margin-bottom: 15px; line-height: 1.5;">
+                    <div style="font-size: 15.5px; margin-bottom: 12px; line-height: 1.5;">
                         <div style="display: flex; justify-content: space-between;">
                             <div><b>ชื่อ-สกุล:</b> ${name}</div>
                             <div><b>รหัส HN:</b> ${hn || '-'}</div>
@@ -1141,21 +1172,21 @@
                         </div>
                     </div>
 
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-size: 17px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px dashed #9ca3af; padding-bottom: 4px;">ผลการคัดกรองเบื้องต้น:</div>
+                    <div style="margin-bottom: 10px;">
+                        <div style="font-size: 16.5px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px dashed #9ca3af; padding-bottom: 4px;">ผลการคัดกรองเบื้องต้น:</div>
                         ${questionsHtml}
                     </div>
 
-                    <div style="border: 2px solid #374151; border-radius: 8px; padding: 10px; text-align: center; margin-top: 10px; background: #f9fafb;">
-                        <div style="font-size: 20px; font-weight: bold; ${finalDecision.includes('ไม่ยินยอม') ? 'color: #dc2626;' : 'color: #1d4ed8;'}">${finalDecision}</div>
+                    <div style="border: 2px solid #374151; border-radius: 8px; padding: 8px; text-align: center; margin-top: 8px; background: #f9fafb;">
+                        <div style="font-size: 19px; font-weight: bold; ${finalDecision.includes('ไม่ยินยอม') ? 'color: #dc2626;' : 'color: #1d4ed8;'}">${finalDecision}</div>
                     </div>
                 </div>
 
-                <div style="text-align: center; width: 100%; margin-top: auto; padding-top: 10px;">
-                    <div style="font-size: 15px; margin-bottom: 6px; line-height: 1.4;">
+                <div style="text-align: center; width: 100%; margin-top: auto; padding-top: 8px;">
+                    <div style="font-size: 14.5px; margin-bottom: 5px; line-height: 1.4;">
                         <div>ลงชื่อ ........................................................................ ผู้รับบริการ</div>
                         <div>( ${name} )</div>
-                        <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">พิมพ์เมื่อ: ${timeStr}</div>
+                        <div style="font-size: 11.5px; color: #6b7280; margin-top: 2px;">พิมพ์เมื่อ: ${timeStr}</div>
                     </div>
                     <div style="display: flex; justify-content: center; margin-top: 2px;">
                         <svg id="mobileBarcode_${Date.now()}"></svg>
@@ -1165,7 +1196,7 @@
             
             document.body.appendChild(printDiv);
             const barcodeSvg = printDiv.querySelector('svg');
-            JsBarcode(barcodeSvg, barcodeData, { format: "CODE128", width: 1.8, height: 45, displayValue: true, fontSize: 14, margin: 0 });
+            JsBarcode(barcodeSvg, barcodeData, { format: "CODE128", width: 1.7, height: 42, displayValue: true, fontSize: 13, margin: 0 });
 
             await new Promise(r => setTimeout(r, 200));
 
@@ -1233,15 +1264,15 @@
                     const isYes = item.a === 'มี/ใช่';
                     const isNo = item.a === 'ไม่มี/ไม่ใช่';
                     questionsHtml += `
-                        <div style="margin-bottom: 8px; font-size: 13pt; color: #111; font-weight: 500;">
-                            <div style="margin-bottom: 3px; line-height: 1.3;">${item.q}</div>
+                        <div style="margin-bottom: 7px; font-size: 12.5pt; color: #111; font-weight: 500;">
+                            <div style="margin-bottom: 2px; line-height: 1.3;">${item.q}</div>
                             <div style="display: flex; gap: 35px; margin-left: 14px;">
                                 <div style="display: flex; align-items: center;">
-                                    <div style="display: flex; justify-content: center; align-items: center; width: 14px; height: 14px; border: 2px solid #000; margin-right: 6px; font-weight: bold; font-size: 12px;">${isYes ? '✓' : ''}</div>
+                                    <div style="display: flex; justify-content: center; align-items: center; width: 13px; height: 13px; border: 2px solid #000; margin-right: 6px; font-weight: bold; font-size: 11px;">${isYes ? '✓' : ''}</div>
                                     <span>มี/ใช่</span>
                                 </div>
                                 <div style="display: flex; align-items: center;">
-                                    <div style="display: flex; justify-content: center; align-items: center; width: 14px; height: 14px; border: 2px solid #000; margin-right: 6px; font-weight: bold; font-size: 12px;">${isNo ? '✓' : ''}</div>
+                                    <div style="display: flex; justify-content: center; align-items: center; width: 13px; height: 13px; border: 2px solid #000; margin-right: 6px; font-weight: bold; font-size: 11px;">${isNo ? '✓' : ''}</div>
                                     <span>ไม่มี/ไม่ใช่</span>
                                 </div>
                             </div>
@@ -1284,44 +1315,44 @@
                 </head>
                 <body>
                     <div style="width: 100%;">
-                        <div style="text-align: center; border-bottom: 2px solid #374151; padding-bottom: 6px; margin-bottom: 12px;">
+                        <div style="text-align: center; border-bottom: 2px solid #374151; padding-bottom: 6px; margin-bottom: 10px;">
                             <h2 style="font-size: 18pt; font-weight: bold; margin: 0 0 2px 0;">โรงพยาบาลศรีสะเกษ</h2>
                             <h3 style="font-size: 14pt; font-weight: bold; margin: 0; color: #1f2937;">หลักฐานการแสดงความยินยอม</h3>
                             <p style="font-size: 11pt; color: #4b5563; margin: 2px 0 0 0;">การรับบริการฉีดวัคซีนป้องกันโรคติดต่อ</p>
                         </div>
 
-                        <div style="font-size: 12.5pt; margin-bottom: 12px; line-height: 1.5;">
+                        <div style="font-size: 12pt; margin-bottom: 10px; line-height: 1.5;">
                             <div style="display: flex; justify-content: space-between;">
                                 <div><b>ชื่อ-สกุล:</b> ${name}</div>
                                 <div><b>รหัส HN:</b> ${hn || '-'}</div>
                             </div>
                             <div><b>วัคซีนที่รับ:</b> ${vaccineName}</div>
-                            <div style="margin-top: 5px; font-size: 12pt; display: flex; align-items: center; white-space: nowrap;">
+                            <div style="margin-top: 5px; font-size: 11.5pt; display: flex; align-items: center; white-space: nowrap;">
                                 <b>สัญญาณชีพ:</b> <span style="margin-left: 6px;">นน. ${wTxt} กก. &nbsp;&nbsp;|&nbsp;&nbsp; สท. ${hTxt} ซม. &nbsp;&nbsp;|&nbsp;&nbsp; อุณหภูมิ ${tTxt} °C</span>
                             </div>
-                            <div style="margin-top: 5px; font-size: 12pt;">
+                            <div style="margin-top: 5px; font-size: 11.5pt;">
                                 <b>ความดันโลหิต:</b> ${bpTxt} mmHg
                             </div>
                         </div>
 
-                        <div style="margin-bottom: 8px;">
-                            <div style="font-size: 13.5pt; font-weight: bold; margin-bottom: 6px; border-bottom: 1px dashed #9ca3af; padding-bottom: 3px;">ผลการคัดกรองเบื้องต้น:</div>
+                        <div style="margin-bottom: 6px;">
+                            <div style="font-size: 13pt; font-weight: bold; margin-bottom: 6px; border-bottom: 1px dashed #9ca3af; padding-bottom: 3px;">ผลการคัดกรองเบื้องต้น:</div>
                             ${questionsHtml}
                         </div>
 
-                        <div style="border: 2px solid #374151; border-radius: 6px; padding: 8px; text-align: center; margin-top: 8px; background: #f9fafb;">
-                            <div style="font-size: 15pt; font-weight: bold; ${finalDecision.includes('ไม่ยินยอม') ? 'color: #dc2626;' : 'color: #1d4ed8;'}">${finalDecision}</div>
+                        <div style="border: 2px solid #374151; border-radius: 6px; padding: 6px; text-align: center; margin-top: 6px; background: #f9fafb;">
+                            <div style="font-size: 14pt; font-weight: bold; ${finalDecision.includes('ไม่ยินยอม') ? 'color: #dc2626;' : 'color: #1d4ed8;'}">${finalDecision}</div>
                         </div>
                     </div>
 
-                    <div style="text-align: center; width: 100%; margin-top: auto; padding-top: 5px;">
-                        <div style="font-size: 12pt; margin-bottom: 6px; line-height: 1.3;">
+                    <div style="text-align: center; width: 100%; margin-top: auto; padding-top: 4px;">
+                        <div style="font-size: 11.5pt; margin-bottom: 4px; line-height: 1.3;">
                             <div>ลงชื่อ ........................................................................ ผู้รับบริการ</div>
                             <div>( ${name} )</div>
-                            <div style="font-size: 9.5pt; color: #6b7280; margin-top: 1px;">พิมพ์เมื่อ: ${timeStr}</div>
+                            <div style="font-size: 9pt; color: #6b7280; margin-top: 1px;">พิมพ์เมื่อ: ${timeStr}</div>
                         </div>
 
-                        <div style="display: flex; justify-content: center; margin-top: 2px;">
+                        <div style="display: flex; justify-content: center; margin-top: 1px;">
                             <svg id="slipBarcode"></svg>
                         </div>
                     </div>
@@ -1329,7 +1360,7 @@
                     <script>
                         window.onload = function() {
                             JsBarcode("#slipBarcode", "${barcodeData}", {
-                                format: "CODE128", width: 1.6, height: 38, displayValue: true, fontSize: 11, margin: 0
+                                format: "CODE128", width: 1.5, height: 35, displayValue: true, fontSize: 10, margin: 0
                             });
                             setTimeout(function() { window.print(); window.close(); }, 400);
                         };
@@ -1424,7 +1455,7 @@
                     <div class="flex justify-between items-center p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition">
                         <div>
                             <p class="font-bold text-gray-800 text-sm">${p.prefix || ''}${p.fname || ''} ${p.lname || ''}</p>
-                            <p class="text-xs text-gray-500">CID: ${p.cid || '-'} | HN: ${p.hn || '-'} | เบอร์โทร: ${p.phone || '-'}</p>
+                            <p class="text-xs text-gray-500">CID: ${p.cid || '-'} | HN: ${p.hn || '-'}</p>
                         </div>
                         <div class="flex space-x-2">
                             <button onclick="adminEditPatient('${p.docId}')" class="text-blue-600 bg-blue-100 hover:bg-blue-200 px-3 py-1.5 rounded-lg text-xs font-bold transition">แก้ไข</button>
@@ -1472,10 +1503,6 @@
                             <label class="text-xs font-bold text-gray-700">นามสกุล <span class="text-red-500">*</span></label>
                             <input id="editLname" class="swal2-input w-full mx-0 mt-1 h-10 text-sm" value="${p.lname || ''}">
                         </div>
-                        <div>
-                            <label class="text-xs font-bold text-gray-700">เบอร์โทรหน่วยงาน (4 หลัก) <span class="text-red-500">*</span></label>
-                            <input id="editPhone" maxlength="4" class="swal2-input w-full mx-0 mt-1 h-10 text-sm" value="${p.phone || ''}">
-                        </div>
                     </div>
                 `,
                 showCancelButton: true,
@@ -1488,7 +1515,6 @@
                     const editPrefixVal = document.getElementById('editPrefix').value.trim();
                     const editFnameVal = document.getElementById('editFname').value.trim();
                     const editLnameVal = document.getElementById('editLname').value.trim();
-                    const editPhoneVal = document.getElementById('editPhone').value.trim();
 
                     if(!editCidVal || editCidVal.length !== 13 || isNaN(editCidVal)) {
                         Swal.showValidationMessage('กรุณากรอกเลข 13 หลักให้ถูกต้อง');
@@ -1510,18 +1536,13 @@
                         Swal.showValidationMessage('กรุณากรอกชื่อและนามสกุลให้ครบถ้วน');
                         return false;
                     }
-                    if(!editPhoneVal || editPhoneVal.length !== 4 || isNaN(editPhoneVal)) {
-                        Swal.showValidationMessage('กรุณาระบุเบอร์โทร 4 หลักให้ถูกต้อง');
-                        return false;
-                    }
 
                     return {
                         cid: editCidVal,
                         hn: editHnVal,
                         prefix: editPrefixVal,
                         fname: editFnameVal,
-                        lname: editLnameVal,
-                        phone: editPhoneVal
+                        lname: editLnameVal
                     };
                 }
             });
@@ -1684,8 +1705,17 @@
 
         function updateVaccineSelect() {
             const select = document.getElementById('vaccineSelect');
+            const batchSelect = document.getElementById('batchVaccineSelect'); // เพิ่มตัวแปร
+            
             select.innerHTML = '<option value="">-- กรุณาเลือกวัคซีน --</option>';
-            vaccinesData.forEach(v => { if(v.active) select.innerHTML += `<option value="${v.name}">${v.name}</option>`; });
+            if(batchSelect) batchSelect.innerHTML = '<option value="">-- กรุณาเลือกวัคซีน --</option>'; // ตั้งค่าเริ่มต้นให้ batch select
+            
+            vaccinesData.forEach(v => { 
+                if(v.active) {
+                    select.innerHTML += `<option value="${v.name}">${v.name}</option>`; 
+                    if(batchSelect) batchSelect.innerHTML += `<option value="${v.name}">${v.name}</option>`; // อัปเดตข้อมูลให้ batch select ด้วย
+                }
+            });
         }
 
         function renderAdminQueue() {
@@ -1767,6 +1797,16 @@
             const ws = XLSX.utils.json_to_sheet([{ "cid": "1111111111111", "hn": "HN-00123", "prefix": "นาย", "fname": "สมชาย", "lname": "รักชาติ", "phone": "3215" }]);
             const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Template"); XLSX.writeFile(wb, "Template.xlsx");
         }
+        
+        function downloadBatchPrintTemplate() {
+            const ws = XLSX.utils.json_to_sheet([
+                { "เลขบัตรประชาชน": "1111111111111", "รหัส HN": "HN-00123", "คำนำหน้า": "นาย", "ชื่อ": "สมชาย", "นามสกุล": "รักชาติ" },
+                { "เลขบัตรประชาชน": "2222222222222", "รหัส HN": "", "คำนำหน้า": "นางสาว", "ชื่อ": "สมหญิง", "นามสกุล": "ใจดี" }
+            ]);
+            const wb = XLSX.utils.book_new(); 
+            XLSX.utils.book_append_sheet(wb, ws, "BatchPrint_Template"); 
+            XLSX.writeFile(wb, "BatchPrint_Template.xlsx");
+        }
 
         async function handleExcelUpload(e) {
             const file = e.target.files[0];
@@ -1803,6 +1843,256 @@
         }
 
         function updateDbCount() { document.getElementById('dbCount').innerText = dbData.length.toLocaleString(); }
+
+        // ==========================================================
+        // ฟังก์ชันใหม่: พิมพ์ใบยินยอมแบบกลุ่ม (Batch Print) จาก Excel
+        // ==========================================================
+        async function handleBatchPrintUpload(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+
+            const selectedVaccine = document.getElementById('batchVaccineSelect').value;
+            if(!selectedVaccine) {
+                Swal.fire({ icon: 'warning', title: 'กรุณาเลือกวัคซีน', text: 'ต้องเลือกวัคซีนที่ต้องการพิมพ์ลงในใบยินยอมก่อนอัปโหลดไฟล์ครับ', confirmButtonColor: '#4f46e5' });
+                e.target.value = ''; // รีเซ็ต input file
+                return;
+            }
+
+            const vaccineObj = vaccinesData.find(v => v.name === selectedVaccine);
+            if (!vaccineObj) return;
+
+            // ตั้งค่าคำตอบเริ่มต้นสำหรับแบบคัดกรอง คือ "ไม่มี/ไม่ใช่" ทั้งหมด
+            const defaultAnswers = vaccineObj.questions.map(q => ({ q: q, a: 'ไม่มี/ไม่ใช่' }));
+
+            document.getElementById('loadingText').innerText = 'กำลังเตรียมข้อมูลสำหรับสั่งพิมพ์...';
+            document.getElementById('loadingOverlay').style.display = 'flex';
+
+            const reader = new FileReader();
+            
+            // อ่านไฟล์เสร็จแล้ว ค่อยทำงานส่วนนี้
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // แปลง sheet เป็น JSON โดยใช้แถวแรกเป็น header
+                    const excelRows = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    if(excelRows && excelRows.length > 0) {
+                        // ดึงและทำความสะอาดข้อมูลจาก Excel
+                        const printDataList = excelRows.map(row => {
+                            // ทำให้ดึงข้อมูลได้ยืดหยุ่นขึ้น โดยจัดการพวกช่องว่าง(space) ที่อาจจะแฝงอยู่ในชื่อคอลัมน์
+                            const getKey = (keys) => {
+                                for(let key of keys) {
+                                    if(row[key] !== undefined) return row[key];
+                                    for(let k in row) {
+                                        if(k.trim() === key) return row[k];
+                                    }
+                                }
+                                return '';
+                            };
+
+                            const rawCid = getKey(['เลขบัตรประชาชน', 'cid', 'CID', 'รหัสบัตรประชาชน']);
+                            const rawHn = getKey(['รหัส HN', 'hn', 'HN']);
+                            const rawPrefix = getKey(['คำนำหน้า', 'prefix', 'Prefix']);
+                            const rawFname = getKey(['ชื่อ', 'fname', 'Fname']);
+                            const rawLname = getKey(['นามสกุล', 'lname', 'Lname']);
+
+                            return {
+                                cid: String(rawCid).replace(/[^0-9]/g, ''), 
+                                hn: String(rawHn).trim(),
+                                prefix: String(rawPrefix).trim(), 
+                                fname: String(rawFname).trim(), 
+                                lname: String(rawLname).trim()
+                            };
+                        }).filter(r => r.fname && r.lname); // กรองเอาเฉพาะคนที่มีชื่อและนามสกุล
+
+                        if (printDataList.length === 0) {
+                            Swal.fire('เกิดข้อผิดพลาด', 'ไม่พบข้อมูลที่ถูกต้องในไฟล์ Excel (ตรวจเช็คหัวคอลัมน์ "ชื่อ" และ "นามสกุล")', 'error');
+                            document.getElementById('loadingOverlay').style.display = 'none';
+                            return;
+                        }
+
+                        // ตรวจสอบว่าจำนวนหน้ามากเกินไปไหม (ป้องกันเบราว์เซอร์ค้าง)
+                        if (printDataList.length > 200) {
+                            Swal.fire('คำเตือน', 'จำนวนรายชื่อในไฟล์มีมากกว่า 200 คน อาจทำให้เบราว์เซอร์ทำงานช้าหรือค้างขณะสั่งพิมพ์ แนะนำให้แบ่งไฟล์เป็นชุดเล็กๆ ครับ', 'warning');
+                        }
+
+                        // เตรียม HTML สำหรับเปิดหน้าพิมพ์
+                        let pagesHtml = '';
+                        let scriptsHtml = '';
+                        const now = new Date();
+                        const timeStr = `${now.toLocaleDateString('th-TH')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+                        // เตรียม HTML แบบคัดกรองเบื้องต้น (ใช้เหมือนเดิมทุกหน้า)
+                        let questionsHtml = '';
+                        defaultAnswers.forEach(item => {
+                            const isYes = item.a === 'มี/ใช่';
+                            const isNo = item.a === 'ไม่มี/ไม่ใช่';
+                            questionsHtml += `
+                                <div style="margin-bottom: 9px; font-size: 13.5pt; color: #111; font-weight: 500;">
+                                    <div style="margin-bottom: 4px; line-height: 1.35;">${item.q}</div>
+                                    <div style="display: flex; gap: 40px; margin-left: 14px;">
+                                        <div style="display: flex; align-items: center;">
+                                            <div style="display: flex; justify-content: center; align-items: center; width: 16px; height: 16px; border: 2px solid #000; margin-right: 8px; font-weight: bold; font-size: 14px;">${isYes ? '✓' : ''}</div>
+                                            <span>มี/ใช่</span>
+                                        </div>
+                                        <div style="display: flex; align-items: center;">
+                                            <div style="display: flex; justify-content: center; align-items: center; width: 16px; height: 16px; border: 2px solid #000; margin-right: 8px; font-weight: bold; font-size: 14px;">${isNo ? '✓' : ''}</div>
+                                            <span>ไม่มี/ไม่ใช่</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+
+                        // วนลูปสร้างหน้า HTML สำหรับผู้รับบริการแต่ละคน
+                        printDataList.forEach((person, index) => {
+                            const fullName = `${person.prefix}${person.fname} ${person.lname}`.trim();
+                            const barcodeData = barcodeSetting === 'CID' ? (person.cid || '-') : (person.hn || '-');
+                            const barcodeId = `barcode_${index}`;
+
+                            pagesHtml += `
+                                <div class="page-container">
+                                    <div style="width: 100%;">
+                                        <div style="text-align: center; border-bottom: 2px solid #374151; padding-bottom: 8px; margin-bottom: 14px;">
+                                            <h2 style="font-size: 20pt; font-weight: bold; margin: 0 0 3px 0;">โรงพยาบาลศรีสะเกษ</h2>
+                                            <h3 style="font-size: 15pt; font-weight: bold; margin: 0; color: #1f2937;">หลักฐานการแสดงความยินยอม</h3>
+                                            <p style="font-size: 12pt; color: #4b5563; margin: 3px 0 0 0;">การรับบริการฉีดวัคซีนป้องกันโรคติดต่อ</p>
+                                        </div>
+
+                                        <div style="font-size: 13.5pt; margin-bottom: 14px; line-height: 1.5;">
+                                            <div style="display: flex; justify-content: space-between;">
+                                                <div><b>ชื่อ-สกุล:</b> ${fullName}</div>
+                                                <div><b>รหัส HN:</b> ${person.hn || '-'}</div>
+                                            </div>
+                                            <div><b>วัคซีนที่รับ:</b> ${selectedVaccine}</div>
+                                            <div style="margin-top: 6px;">
+                                                <b>สัญญาณชีพ:</b> นน. ....................... &nbsp;|&nbsp; สท. ....................... &nbsp;|&nbsp; อุณหภูมิ .......................
+                                            </div>
+                                            <div style="margin-top: 8px;">
+                                                <b>ความดันโลหิต:</b> .......................................................
+                                            </div>
+                                        </div>
+
+                                        <div style="margin-bottom: 10px;">
+                                            <div style="font-size: 14.5pt; font-weight: bold; margin-bottom: 8px; border-bottom: 1px dashed #9ca3af; padding-bottom: 4px;">ผลการคัดกรองเบื้องต้น:</div>
+                                            ${questionsHtml}
+                                        </div>
+
+                                        <div style="border: 2px solid #374151; border-radius: 8px; padding: 10px; text-align: center; margin-top: 10px; background: #f9fafb;">
+                                            <div style="font-size: 16pt; font-weight: bold; color: #1d4ed8;">ยินยอมรับการฉีดวัคซีน</div>
+                                        </div>
+                                    </div>
+
+                                    <div style="text-align: center; width: 100%; margin-top: 10px; padding-top: 6px;">
+                                        <div style="font-size: 12.5pt; margin-bottom: 8px; line-height: 1.4;">
+                                            <div>ลงชื่อ ........................................................................ ผู้รับบริการ</div>
+                                            <div>( ${fullName} )</div>
+                                            <div style="font-size: 10pt; color: #6b7280; margin-top: 2px;">พิมพ์เมื่อ: ${timeStr}</div>
+                                        </div>
+
+                                        <div style="display: flex; justify-content: center; margin-top: 2px;">
+                                            <svg id="${barcodeId}"></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+
+                            // เพิ่มสคริปต์สร้างบาร์โค้ดลงคิว
+                            if(barcodeData !== '-') {
+                                scriptsHtml += `JsBarcode("#${barcodeId}", "${barcodeData}", { format: "CODE128", width: 1.8, height: 46, displayValue: true, fontSize: 12, margin: 0 });\n`;
+                            } else {
+                                // ถ้าไม่มีข้อมูลบาร์โค้ด ให้ซ่อน SVG ไป
+                                scriptsHtml += `document.getElementById("${barcodeId}").style.display = 'none';\n`;
+                            }
+                        });
+
+                        // เปิดหน้าต่าง Print
+                        const printWindow = window.open('', '_blank');
+                        printWindow.document.write(`
+                            <!DOCTYPE html>
+                            <html lang="th">
+                            <head>
+                                <meta charset="UTF-8">
+                                <title>พิมพ์ใบยินยอม (Batch Print)</title>
+                                <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+                                <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"><\/script>
+                                <style>
+                                    @page { size: A5 portrait; margin: 0; }
+                                    * { box-sizing: border-box; }
+                                    body { 
+                                        font-family: 'Prompt', sans-serif; 
+                                        margin: 0; 
+                                        padding: 0; 
+                                        background: #e5e7eb; /* พื้นหลังสีเทาอ่อนสำหรับตอนดูหน้าจอ */
+                                    }
+                                    .page-container {
+                                        width: 148mm;
+                                        height: 210mm;
+                                        padding: 10mm 12mm;
+                                        margin: 0 auto;
+                                        background: #fff;
+                                        color: #111;
+                                        display: flex;
+                                        flex-direction: column;
+                                        justify-content: space-between;
+                                        overflow: hidden;
+                                        /* ให้บังคับขึ้นหน้าใหม่เสมอเว้นแต่เป็นหน้าแรกสุด เพื่อให้ Print แล้วเป็น A5 ต่อแผ่นพอดี */
+                                        page-break-after: always; 
+                                        break-after: page;
+                                    }
+                                    /* ซ่อนหน้าว่างแผ่นสุดท้าย */
+                                    .page-container:last-child {
+                                        page-break-after: avoid;
+                                        break-after: avoid;
+                                    }
+                                    @media print {
+                                        body { background: #fff; }
+                                        .page-container { margin: 0; box-shadow: none; }
+                                    }
+                                </style>
+                            </head>
+                            <body>
+                                ${pagesHtml}
+                                <script>
+                                    window.onload = function() {
+                                        ${scriptsHtml}
+                                        setTimeout(function() { window.print(); }, 800); // รอให้ Barcode วาดเสร็จก่อนสั่ง Print
+                                    };
+                                <\/script>
+                            </body>
+                            </html>
+                        `);
+                        printWindow.document.close();
+                        
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        document.getElementById('batchExcelUpload').value = '';
+
+                    } else {
+                        throw new Error("ไฟล์ว่างเปล่า");
+                    }
+                } catch (err) {
+                    console.error("Batch Print Error:", err);
+                    Swal.fire('ข้อผิดพลาด', 'ไม่สามารถอ่านไฟล์ Excel ได้ หรือโครงสร้างไฟล์ไม่ถูกต้อง', 'error');
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    document.getElementById('batchExcelUpload').value = '';
+                }
+            };
+            
+            // ใช้ error handler สำหรับ FileReader
+            reader.onerror = function(err) {
+                console.error("FileReader Error:", err);
+                Swal.fire('ข้อผิดพลาด', 'เกิดปัญหาในการเข้าถึงไฟล์', 'error');
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('batchExcelUpload').value = '';
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
     </script>
 </body>
 </html>
