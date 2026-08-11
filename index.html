@@ -603,8 +603,8 @@
                 return;
             }
 
-            // --- เช็คข้อมูลที่ขาด (คำนำหน้า, ชื่อ, นามสกุล) ---
-            if (!currentPatient.prefix || !currentPatient.fname || !currentPatient.lname) {
+            // --- เช็คข้อมูลที่ขาด (คำนำหน้า, ชื่อ, นามสกุล, เบอร์โทรหน่วยงาน) ---
+            if (!currentPatient.prefix || !currentPatient.fname || !currentPatient.lname || !currentPatient.phone || currentPatient.phone.length !== 4) {
                 await promptForMissingData();
                 return; // หยุดการทำงานไว้แค่นี้ แล้วรอให้ promptForMissingData จัดการต่อ
             }
@@ -647,6 +647,10 @@
                             <label class="text-sm font-bold text-gray-700">นามสกุล <span class="text-red-500">*</span></label>
                             <input id="missLname" class="swal2-input w-full mx-0 mt-1" value="${currentPatient.lname || ''}">
                         </div>
+                        <div>
+                            <label class="text-sm font-bold text-gray-700">เบอร์โทรหน่วยงาน (4 หลัก) <span class="text-red-500">*</span></label>
+                            <input id="missPhone" maxlength="4" class="swal2-input w-full mx-0 mt-1" value="${currentPatient.phone || ''}" placeholder="ระบุตัวเลข 4 หลัก">
+                        </div>
                     </div>
                 `,
                 focusConfirm: false,
@@ -658,6 +662,7 @@
                     const prefix = document.getElementById('missPrefix').value.trim();
                     const fname = document.getElementById('missFname').value.trim();
                     const lname = document.getElementById('missLname').value.trim();
+                    const phone = document.getElementById('missPhone').value.trim();
                     
                     if(!prefix) { 
                         Swal.showValidationMessage('กรุณาเลือกคำนำหน้า'); 
@@ -667,13 +672,18 @@
                         Swal.showValidationMessage('กรุณากรอกชื่อและนามสกุลให้ครบถ้วน'); 
                         return false; 
                     }
+                    if(!phone || phone.length !== 4 || isNaN(phone)) {
+                        Swal.showValidationMessage('กรุณาระบุเบอร์โทรหน่วยงานเป็นตัวเลข 4 หลักให้ถูกต้อง');
+                        return false;
+                    }
 
                     // คืนค่าที่อัปเดตแล้ว (ดึงค่าเดิมบางส่วนมาด้วย)
                     return { 
                         ...currentPatient, 
                         prefix: prefix, 
                         fname: fname, 
-                        lname: lname 
+                        lname: lname,
+                        phone: phone
                     };
                 }
             });
@@ -712,6 +722,11 @@
             document.getElementById('displayFullName').innerText = fullNameStr;
             document.getElementById('displayCid').innerText = formatCid(currentPatient.cid);
             document.getElementById('displayHn').innerText = currentPatient.hn || '-';
+            
+            // แสดงเบอร์โทรหน่วยงานในการ์ดประวัติด้วย ถ้ายังไม่มี ID displayPhone ให้สร้างไว้ในการ์ด
+            const phoneDisplay = document.getElementById('displayPhone');
+            if (phoneDisplay) phoneDisplay.innerText = currentPatient.phone || '-';
+
             document.getElementById('patientInfoCard').classList.remove('hidden');
             
             const mainContainer = document.getElementById('mainContainer');
