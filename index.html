@@ -411,7 +411,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, onSnapshot, writeBatch, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDO-PG-zJdugDklXvljVAwbgpflzNttILE",
@@ -1718,81 +1718,81 @@
             });
         }
 
-        function renderAdminQueue() {
-            const tbody = document.getElementById('adminQueueTable');
-            tbody.innerHTML = '';
-            
-            if(queueData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-gray-500">ยังไม่มีผู้เข้ารับบริการ</td></tr>';
+        async function searchPatient() {
+            const rawQuery = document.getElementById('searchQuery').value.trim();
+            if(!rawQuery) {
+                Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: 'กรุณากรอกเลขบัตรประชาชน หรือ รหัส HN', confirmButtonColor: '#3b82f6' });
                 return;
             }
 
-            queueData.forEach((q, index) => {
-                const dateObj = new Date(q.timestamp);
-                const dateStr = dateObj.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit' });
-                const timeStr = dateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-                const badgeClass = q.decision === 'consent' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-                
-                tbody.innerHTML += `
-                    <tr class="bg-white border-b hover:bg-gray-50">
-                        <td class="px-6 py-4 font-bold text-blue-600">#${(index+1).toString().padStart(3,'0')}</td>
-                        <td class="px-6 py-4 text-xs">${dateStr} <br/><span class="font-bold text-gray-700">${timeStr} น.</span></td>
-                        <td class="px-6 py-4 font-bold text-blue-600">${q.hn || '-'}</td>
-                        <td class="px-6 py-4 font-medium text-gray-900">${q.name}</td>
-                        <td class="px-6 py-4">${q.vaccine}</td>
-                        <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold ${badgeClass}">${q.decision === 'consent' ? 'ยินยอม' : 'ไม่ยินยอม'}</span></td>
-                        <td class="px-6 py-4 space-x-2 flex items-center">
-                            <button onclick="printQueueItem('${q.id}')" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm">ปริ้น</button>
-                            <button onclick="deleteQueue('${q.id}')" class="text-red-500 bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm">ลบ</button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
+            const cleanQuery = rawQuery.replace(/^0+/, ''); 
+            currentPatient = dbData.find(p => p.cid === rawQuery || p.cid === cleanQuery || (p.hn && p.hn.replace(/^0+/, '') === cleanQuery));
 
-        async function printQueueItem(id) {
-            const q = queueData.find(item => item.id === id);
-            if (!q) return;
-            const decisionText = q.decision === 'consent' ? 'ยินยอมรับการฉีดวัคซีน' : 'ไม่ยินยอมรับการฉีดวัคซีน';
-            const v = q.vitals || {};
-            
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            if (isMobile) {
-                document.getElementById('loadingText').innerText = 'กำลังสร้างรูปภาพ...';
+            // หากโหลดไม่ทัน (เช่น เพิ่งรีเฟรช) ให้ยิงคำค้นหาตรงไปที่เซิร์ฟเวอร์เพื่อความชัวร์
+            if(!currentPatient) {
+                document.getElementById('loadingText').innerText = 'กำลังค้นหาจากเซิร์ฟเวอร์...';
                 document.getElementById('loadingOverlay').style.display = 'flex';
-                await generateSlipImageMobile(q.name, q.cid, q.hn, q.vaccine, q.answers, decisionText, v.weight, v.height, v.temp, v.bp);
-                document.getElementById('loadingOverlay').style.display = 'none';
-            } else {
-                printSlipWindow(q.name, q.cid, q.hn, q.vaccine, q.answers, decisionText, v.weight, v.height, v.temp, v.bp);
+                try {
+                    const patientsRef = collection(db, 'artifacts', appId, 'public', 'data', 'patients');
+                    
+                    // 1. ลองหาจาก docId (ปกติคือเลข 13 หลัก)
+                    const directDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'patients', rawQuery);
+                    const directDocSnap = await getDoc(directDocRef);
+                    
+                    if (directDocSnap.exists()) {
+                        currentPatient = { ...directDocSnap.data(), docId: directDocSnap.id };
+                    } else {
+                        // 2. ลองหาจากฟิลด์ cid
+                        const qCid = query(patientsRef, where("cid", "==", rawQuery));
+                        const snapCid = await getDocs(qCid);
+                        if (!snapCid.empty) {
+                            currentPatient = { ...snapCid.docs[0].data(), docId: snapCid.docs[0].id };
+                        } else {
+                            // 3. ลองหาจากฟิลด์ hn
+                            const qHn = query(patientsRef, where("hn", "==", rawQuery));
+                            const snapHn = await getDocs(qHn);
+                            if (!snapHn.empty) {
+                                currentPatient = { ...snapHn.docs[0].data(), docId: snapHn.docs[0].id };
+                            } else {
+                                // 4. ลองหาแบบตัดเลข 0 ข้างหน้า
+                                const qHnClean = query(patientsRef, where("hn", "==", cleanQuery));
+                                const snapHnClean = await getDocs(qHnClean);
+                                if (!snapHnClean.empty) {
+                                    currentPatient = { ...snapHnClean.docs[0].data(), docId: snapHnClean.docs[0].id };
+                                }
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error("Fetch error:", err);
+                } finally {
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                }
             }
+
+            if(!currentPatient) {
+                Swal.fire({
+                    title: 'ไม่พบข้อมูลในระบบ',
+                    text: "ต้องการเพิ่มประวัติผู้รับบริการรายใหม่หรือไม่?",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#10b981',
+                    cancelButtonColor: '#6b7280',
+                    confirmButtonText: 'เพิ่มประวัติใหม่',
+                    cancelButtonText: 'ยกเลิก'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        addNewPatientModal(rawQuery);
+                    }
+                });
+                resetFormState();
+                return;
+            }
+
+            checkQueueAndProceed();
         }
 
-        async function editQueueItem(id) {
-             Swal.fire({ icon: 'info', text: 'ระบบแก้ไขสถานะจากหน้าคิวอยู่ระหว่างปรับปรุง' });
-        }
-
-        function deleteQueue(id) {
-            Swal.fire({ title: 'ยืนยันการลบ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }).then(async (result) => {
-                if (result.isConfirmed && auth.currentUser) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'queue', id));
-                }
-            });
-        }
-
-        function clearQueue() {
-            Swal.fire({ title: 'ล้างข้อมูลคิวทั้งหมด?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }).then(async (result) => {
-                if (result.isConfirmed && auth.currentUser) {
-                    const batch = writeBatch(db);
-                    queueData.forEach(q => batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'queue', q.id)));
-                    await batch.commit();
-                }
-            });
-        }
-
-        async function saveBarcodeSetting(val) {
-            if (auth.currentUser) await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), { barcodeSetting: val }, { merge: true });
-        }
-
+        async function checkQueueAndProceed() {
         function downloadExcelTemplate() {
             const ws = XLSX.utils.json_to_sheet([{ "cid": "1111111111111", "hn": "HN-00123", "prefix": "นาย", "fname": "สมชาย", "lname": "รักชาติ", "phone": "3215" }]);
             const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Template"); XLSX.writeFile(wb, "Template.xlsx");
