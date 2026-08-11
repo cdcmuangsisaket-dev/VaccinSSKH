@@ -446,6 +446,8 @@
         let currentPatient = null; 
         let barcodeSetting = 'HN'; 
         let isSubmitting = false; 
+        let patientMap = new Map(); // ตัวแปรใหม่: Index สำหรับค้นหาไว
+        let isDbLoaded = false; // ตัวแปรใหม่: เช็คว่าโหลดข้อมูลเสร็จหรือยัง
 
         window.switchTab = switchTab;
         window.requireQueuePassword = requireQueuePassword;
@@ -548,6 +550,23 @@
             const patientsRef = collection(db, 'artifacts', appId, 'public', 'data', 'patients');
             onSnapshot(patientsRef, (snapshot) => {
                 dbData = snapshot.docs.map(doc => ({ ...doc.data(), docId: doc.id }));
+                
+                // สร้าง Index (Map) เพื่อให้ค้นหาได้ไวระดับเสี้ยววินาที ไม่ทำหน้าเว็บค้าง
+                patientMap.clear();
+                dbData.forEach(p => {
+                    if(p.cid) {
+                        patientMap.set(p.cid, p);
+                        let cleanCid = p.cid.replace(/^0+/, '');
+                        if(cleanCid) patientMap.set(cleanCid, p);
+                    }
+                    if(p.hn) {
+                        patientMap.set(p.hn, p);
+                        let cleanHn = p.hn.replace(/^0+/, '');
+                        if(cleanHn) patientMap.set(cleanHn, p);
+                    }
+                });
+                
+                isDbLoaded = true; // บันทึกว่าดึงฐานข้อมูลมาเก็บในเครื่องเสร็จแล้ว
                 updateDbCount();
             });
 
@@ -1726,43 +1745,29 @@
             }
 
             const cleanQuery = rawQuery.replace(/^0+/, ''); 
-            currentPatient = dbData.find(p => p.cid === rawQuery || p.cid === cleanQuery || (p.hn && p.hn.replace(/^0+/, '') === cleanQuery));
+            
+            // 1. ค้นหาจาก Map (ค้นหาไว ไม่ทำให้เบราว์เซอร์ค้าง)
+            currentPatient = patientMap.get(rawQuery) || patientMap.get(cleanQuery);
 
-            // หากโหลดไม่ทัน (เช่น เพิ่งรีเฟรช) ให้ยิงคำค้นหาตรงไปที่เซิร์ฟเวอร์เพื่อความชัวร์
-            if(!currentPatient) {
+            // 2. ถ้าหาในเครื่องไม่เจอจริงๆ และ ดาต้าเบสเพิ่งโหลด (กรณีเพิ่งรีเฟรชหน้า) ค่อยไปหาในเซิร์ฟเวอร์
+            if(!currentPatient && !isDbLoaded) {
                 document.getElementById('loadingText').innerText = 'กำลังค้นหาจากเซิร์ฟเวอร์...';
                 document.getElementById('loadingOverlay').style.display = 'flex';
                 try {
                     const patientsRef = collection(db, 'artifacts', appId, 'public', 'data', 'patients');
                     
-                    // 1. ลองหาจาก docId (ปกติคือเลข 13 หลัก)
-                    const directDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'patients', rawQuery);
-                    const directDocSnap = await getDoc(directDocRef);
-                    
-                    if (directDocSnap.exists()) {
-                        currentPatient = { ...directDocSnap.data(), docId: directDocSnap.id };
-                    } else {
-                        // 2. ลองหาจากฟิลด์ cid
-                        const qCid = query(patientsRef, where("cid", "==", rawQuery));
-                        const snapCid = await getDocs(qCid);
-                        if (!snapCid.empty) {
-                            currentPatient = { ...snapCid.docs[0].data(), docId: snapCid.docs[0].id };
-                        } else {
-                            // 3. ลองหาจากฟิลด์ hn
-                            const qHn = query(patientsRef, where("hn", "==", rawQuery));
-                            const snapHn = await getDocs(qHn);
-                            if (!snapHn.empty) {
-                                currentPatient = { ...snapHn.docs[0].data(), docId: snapHn.docs[0].id };
-                            } else {
-                                // 4. ลองหาแบบตัดเลข 0 ข้างหน้า
-                                const qHnClean = query(patientsRef, where("hn", "==", cleanQuery));
-                                const snapHnClean = await getDocs(qHnClean);
-                                if (!snapHnClean.empty) {
-                                    currentPatient = { ...snapHnClean.docs[0].data(), docId: snapHnClean.docs[0].id };
-                                }
-                            }
-                        }
-                    }
+                    // สั่งค้นหาพร้อมกัน 4 แบบ (ทำงานขนานกัน ไม่ต้องรอคิว)
+                    const directP = getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'patients', rawQuery));
+                    const qCidP = getDocs(query(patientsRef, where("cid", "==", rawQuery)));
+                    const qHnP = getDocs(query(patientsRef, where("hn", "==", rawQuery)));
+                    const qHnCleanP = getDocs(query(patientsRef, where("hn", "==", cleanQuery)));
+
+                    const [directSnap, snapCid, snapHn, snapHnClean] = await Promise.all([directP, qCidP, qHnP, qHnCleanP]);
+
+                    if (directSnap.exists()) currentPatient = { ...directSnap.data(), docId: directSnap.id };
+                    else if (!snapCid.empty) currentPatient = { ...snapCid.docs[0].data(), docId: snapCid.docs[0].id };
+                    else if (!snapHn.empty) currentPatient = { ...snapHn.docs[0].data(), docId: snapHn.docs[0].id };
+                    else if (!snapHnClean.empty) currentPatient = { ...snapHnClean.docs[0].data(), docId: snapHnClean.docs[0].id };
                 } catch (err) {
                     console.error("Fetch error:", err);
                 } finally {
