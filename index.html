@@ -615,76 +615,102 @@
 
         // ฟังก์ชันใหม่: แสดงป๊อปอัปให้เติมข้อมูลที่ขาด
         async function promptForMissingData() {
+            // เช็คว่าข้อมูลส่วนไหนขาดหายไปบ้าง
+            const needsPrefix = !currentPatient.prefix;
+            const needsFname = !currentPatient.fname;
+            const needsLname = !currentPatient.lname;
+            const needsPhone = !currentPatient.phone || currentPatient.phone.length !== 4;
+
+            // สร้างแบบฟอร์มเฉพาะส่วนที่ขาด
+            let htmlForm = `
+                <div class="text-left space-y-3 mt-4">
+                    <div class="p-3 bg-red-50 text-red-800 text-xs rounded-xl border border-red-200 mb-2 leading-relaxed">
+                        <b>แจ้งเตือน:</b> พบข้อมูลประวัติในระบบ แต่ยังขาดข้อมูลบางส่วน กรุณาเติมข้อมูลให้ครบถ้วนก่อนดำเนินการต่อ
+                    </div>
+                    <div>
+                        <label class="text-sm font-bold text-gray-700">อ้างอิงประวัติ: <span class="text-blue-600">${currentPatient.cid || currentPatient.hn || '-'}</span></label>
+                    </div>
+            `;
+
+            if (needsPrefix) {
+                htmlForm += `
+                    <div>
+                        <label class="text-sm font-bold text-gray-700">คำนำหน้า <span class="text-red-500">*</span></label>
+                        <select id="missPrefix" class="swal2-select w-full mx-0 mt-1" style="display:flex; height:54px; font-size:1.125em; padding:0 1em;">
+                            <option value="">- เลือก -</option>
+                            <option value="นาย">นาย</option>
+                            <option value="นาง">นาง</option>
+                            <option value="นางสาว">นางสาว</option>
+                            <option value="ด.ช.">ด.ช.</option>
+                            <option value="ด.ญ.">ด.ญ.</option>
+                        </select>
+                    </div>
+                `;
+            }
+            if (needsFname) {
+                htmlForm += `
+                    <div>
+                        <label class="text-sm font-bold text-gray-700">ชื่อ (ไม่ต้องระบุคำนำหน้า) <span class="text-red-500">*</span></label>
+                        <input id="missFname" class="swal2-input w-full mx-0 mt-1">
+                    </div>
+                `;
+            }
+            if (needsLname) {
+                htmlForm += `
+                    <div>
+                        <label class="text-sm font-bold text-gray-700">นามสกุล <span class="text-red-500">*</span></label>
+                        <input id="missLname" class="swal2-input w-full mx-0 mt-1">
+                    </div>
+                `;
+            }
+            if (needsPhone) {
+                htmlForm += `
+                    <div>
+                        <label class="text-sm font-bold text-gray-700">เบอร์โทรหน่วยงาน (4 หลัก) <span class="text-red-500">*</span></label>
+                        <input id="missPhone" maxlength="4" class="swal2-input w-full mx-0 mt-1" placeholder="ระบุตัวเลข 4 หลัก">
+                    </div>
+                `;
+            }
+            
+            htmlForm += `</div>`;
+
             const { value: formValues } = await Swal.fire({
                 title: 'ข้อมูลประวัติไม่ครบถ้วน',
-                html: `
-                    <div class="text-left space-y-3 mt-4">
-                        <div class="p-3 bg-red-50 text-red-800 text-xs rounded-xl border border-red-200 mb-2 leading-relaxed">
-                            <b>แจ้งเตือน:</b> พบข้อมูลประวัติในระบบ แต่ยังขาดข้อมูลบางส่วน กรุณาเติมข้อมูลให้ครบถ้วนก่อนดำเนินการต่อ
-                        </div>
-                        <div>
-                            <label class="text-sm font-bold text-gray-700">เลขบัตรประชาชน 13 หลัก</label>
-                            <input id="missCid" class="swal2-input w-full mx-0 mt-1 bg-gray-100 text-gray-500" value="${currentPatient.cid || ''}" readonly>
-                        </div>
-                        <div class="flex space-x-2 mt-3">
-                            <div class="w-1/3">
-                                <label class="text-sm font-bold text-gray-700">คำนำหน้า <span class="text-red-500">*</span></label>
-                                <select id="missPrefix" class="swal2-select w-full mx-0 mt-1" style="display:flex; height:54px; font-size:1.125em; padding:0 1em;">
-                                    <option value="">- เลือก -</option>
-                                    <option value="นาย" ${currentPatient.prefix === 'นาย' ? 'selected' : ''}>นาย</option>
-                                    <option value="นาง" ${currentPatient.prefix === 'นาง' ? 'selected' : ''}>นาง</option>
-                                    <option value="นางสาว" ${currentPatient.prefix === 'นางสาว' ? 'selected' : ''}>นางสาว</option>
-                                    <option value="ด.ช." ${currentPatient.prefix === 'ด.ช.' ? 'selected' : ''}>ด.ช.</option>
-                                    <option value="ด.ญ." ${currentPatient.prefix === 'ด.ญ.' ? 'selected' : ''}>ด.ญ.</option>
-                                </select>
-                            </div>
-                            <div class="w-2/3">
-                                <label class="text-sm font-bold text-gray-700">ชื่อ (ไม่ต้องระบุคำนำหน้า) <span class="text-red-500">*</span></label>
-                                <input id="missFname" class="swal2-input w-full mx-0 mt-1" value="${currentPatient.fname || ''}">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="text-sm font-bold text-gray-700">นามสกุล <span class="text-red-500">*</span></label>
-                            <input id="missLname" class="swal2-input w-full mx-0 mt-1" value="${currentPatient.lname || ''}">
-                        </div>
-                        <div>
-                            <label class="text-sm font-bold text-gray-700">เบอร์โทรหน่วยงาน (4 หลัก) <span class="text-red-500">*</span></label>
-                            <input id="missPhone" maxlength="4" class="swal2-input w-full mx-0 mt-1" value="${currentPatient.phone || ''}" placeholder="ระบุตัวเลข 4 หลัก">
-                        </div>
-                    </div>
-                `,
+                html: htmlForm,
                 focusConfirm: false,
                 showCancelButton: true,
                 confirmButtonText: 'บันทึกข้อมูลเพิ่มเติม',
                 cancelButtonText: 'ยกเลิก (ไม่ทำรายการ)',
                 confirmButtonColor: '#3b82f6',
                 preConfirm: () => {
-                    const prefix = document.getElementById('missPrefix').value.trim();
-                    const fname = document.getElementById('missFname').value.trim();
-                    const lname = document.getElementById('missLname').value.trim();
-                    const phone = document.getElementById('missPhone').value.trim();
-                    
-                    if(!prefix) { 
-                        Swal.showValidationMessage('กรุณาเลือกคำนำหน้า'); 
-                        return false; 
+                    let updates = {};
+
+                    if (needsPrefix) {
+                        const val = document.getElementById('missPrefix').value.trim();
+                        if(!val) { Swal.showValidationMessage('กรุณาเลือกคำนำหน้า'); return false; }
+                        updates.prefix = val;
                     }
-                    if(!fname || !lname) { 
-                        Swal.showValidationMessage('กรุณากรอกชื่อและนามสกุลให้ครบถ้วน'); 
-                        return false; 
+                    if (needsFname) {
+                        const val = document.getElementById('missFname').value.trim();
+                        if(!val) { Swal.showValidationMessage('กรุณากรอกชื่อ'); return false; }
+                        updates.fname = val;
                     }
-                    if(!phone || phone.length !== 4 || isNaN(phone)) {
-                        Swal.showValidationMessage('กรุณาระบุเบอร์โทรหน่วยงานเป็นตัวเลข 4 หลักให้ถูกต้อง');
-                        return false;
+                    if (needsLname) {
+                        const val = document.getElementById('missLname').value.trim();
+                        if(!val) { Swal.showValidationMessage('กรุณากรอกนามสกุล'); return false; }
+                        updates.lname = val;
+                    }
+                    if (needsPhone) {
+                        const val = document.getElementById('missPhone').value.trim();
+                        if(!val || val.length !== 4 || isNaN(val)) {
+                            Swal.showValidationMessage('กรุณาระบุเบอร์โทรหน่วยงานเป็นตัวเลข 4 หลักให้ถูกต้อง');
+                            return false;
+                        }
+                        updates.phone = val;
                     }
 
-                    // คืนค่าที่อัปเดตแล้ว (ดึงค่าเดิมบางส่วนมาด้วย)
-                    return { 
-                        ...currentPatient, 
-                        prefix: prefix, 
-                        fname: fname, 
-                        lname: lname,
-                        phone: phone
-                    };
+                    // คืนค่าที่อัปเดตแล้ว (รวมของใหม่เข้ากับของเดิม)
+                    return { ...currentPatient, ...updates };
                 }
             });
 
@@ -692,8 +718,7 @@
                 document.getElementById('loadingOverlay').style.display = 'flex';
                 try {
                     // อัปเดตข้อมูลลง Database
-                    // ใช้ docId ถ้ามี (สำหรับข้อมูลที่โหลดมา) หรือใช้ cid ถอดด้าม
-                    const targetDocId = currentPatient.docId || currentPatient.cid; 
+                    const targetDocId = currentPatient.docId || (currentPatient.cid && currentPatient.cid.length === 13 ? currentPatient.cid : (currentPatient.hn ? currentPatient.hn : `${currentPatient.fname}_${currentPatient.lname}`));
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'patients', targetDocId);
                     await setDoc(docRef, formValues, { merge: true });
                     
