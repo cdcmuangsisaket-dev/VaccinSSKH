@@ -810,8 +810,27 @@
         function clearQueue() { Swal.fire({ title: 'ล้างคิวทั้งหมด?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }).then(async (res) => { if(res.isConfirmed){ const batch = writeBatch(db); queueData.forEach(q => batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'queue', q.id))); await batch.commit(); } }); }
         async function saveBarcodeSetting(val) { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), { barcodeSetting: val }, { merge: true }); }
 
-        function downloadExcelTemplate() { const ws = XLSX.utils.json_to_sheet([{"เลขบัตรประชาชน":"1111111111111", "รหัส HN":"HN-001", "คำนำหน้า":"นาย", "ชื่อ":"สมชาย", "นามสกุล":"รักชาติ", "เบอร์โทรหน่วยงาน":"1234"}]); XLSX.writeFile(XLSX.utils.book_append_sheet(XLSX.utils.book_new(), ws, "Template"), "Template.xlsx"); }
-        function downloadBatchPrintTemplate() { const ws = XLSX.utils.json_to_sheet([{"เลขบัตรประชาชน":"1111111111111", "รหัส HN":"HN-001", "คำนำหน้า":"นาย", "ชื่อ":"สมชาย", "นามสกุล":"ใจดี"}]); XLSX.writeFile(XLSX.utils.book_append_sheet(XLSX.utils.book_new(), ws, "Template"), "BatchPrint_Template.xlsx"); }
+        function downloadExcelTemplate() {
+            try {
+                const ws = XLSX.utils.json_to_sheet([{"เลขบัตรประชาชน":"1111111111111", "รหัส HN":"HN-001", "คำนำหน้า":"นาย", "ชื่อ":"สมชาย", "นามสกุล":"รักชาติ", "เบอร์โทรหน่วยงาน":"1234"}]);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Template");
+                XLSX.writeFile(wb, "Template.xlsx");
+            } catch (e) {
+                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดไฟล์ได้: ' + e.message, 'error');
+            }
+        }
+        
+        function downloadBatchPrintTemplate() {
+            try {
+                const ws = XLSX.utils.json_to_sheet([{"เลขบัตรประชาชน":"1111111111111", "รหัส HN":"HN-001", "คำนำหน้า":"นาย", "ชื่อ":"สมชาย", "นามสกุล":"ใจดี"}]);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Template");
+                XLSX.writeFile(wb, "BatchPrint_Template.xlsx");
+            } catch (e) {
+                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดไฟล์ได้: ' + e.message, 'error');
+            }
+        }
 
         function parseExcelRow(row) {
             const getVal = (keys) => { const k = Object.keys(row).find(k => keys.includes(k.trim().toLowerCase())); return k ? String(row[k]).trim() : ''; };
