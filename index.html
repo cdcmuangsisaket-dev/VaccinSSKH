@@ -472,7 +472,7 @@
             Swal.fire({ title: 'ใส่รหัสเข้าดูรายชื่อคิว', input: 'password', showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#3b82f6' })
             .then((res) => { 
                 if (res.isConfirmed) { 
-                    if (res.value === '3215') { sessionStorage.setItem('queueUnlocked', 'true'); switchTab('queue'); } 
+                    if (res.value === '3013') { sessionStorage.setItem('queueUnlocked', 'true'); switchTab('queue'); } 
                     else { Swal.fire({icon:'error', title:'รหัสผิด', timer:1500, showConfirmButton:false}); } 
                 } 
             });
@@ -483,7 +483,7 @@
             Swal.fire({ title: 'ใส่รหัสเข้าหน้าจุดสแกน', input: 'password', showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#3b82f6' })
             .then((res) => { 
                 if (res.isConfirmed) { 
-                    if (res.value === '3215') { sessionStorage.setItem('scanUnlocked', 'true'); switchTab('scan'); } 
+                    if (res.value === '3013') { sessionStorage.setItem('scanUnlocked', 'true'); switchTab('scan'); } 
                     else { Swal.fire({icon:'error', title:'รหัสผิด', timer:1500, showConfirmButton:false}); } 
                 } 
             });
