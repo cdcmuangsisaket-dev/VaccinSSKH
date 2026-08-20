@@ -228,7 +228,7 @@
                                 </div>
                                 <h3 class="font-bold text-gray-800 text-xl flex items-center">
                                     รายชื่อผู้ที่ฉีดวัคซีนแล้ว (วันนี้)
-                                    <span id="injectedCountBadge" class="ml-3 bg-green-500 text-white text-sm px-3 py-1 rounded-full shadow-sm pop-animation">0 คน</span>
+                                    <span id="injectedCountBadge" class="ml-3 bg-green-100 text-green-700 py-1 px-4 rounded-full text-sm font-bold shadow-sm">0 คน</span>
                                 </h3>
                             </div>
                         </div>
@@ -260,9 +260,11 @@
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <div class="flex items-center space-x-4">
                         <div class="bg-blue-100 text-blue-600 rounded-2xl w-10 h-10 flex items-center justify-center font-bold text-lg">📋</div>
-                        <h3 class="font-bold text-gray-800 text-xl">รายชื่อคิวผู้รับบริการ (ทั้งหมด)</h3>
+                        <h3 class="font-bold text-gray-800 text-xl flex items-center">
+                            รายชื่อคิวผู้รับบริการ (ทั้งหมด)
+                            <span id="adminQueueTotalBadge" class="ml-3 bg-blue-100 text-blue-700 py-1 px-4 rounded-full text-sm font-bold shadow-sm">รวม 0 คน</span>
+                        </h3>
                     </div>
-                    
                 </div>
                 <div class="overflow-x-auto rounded-2xl border border-gray-100">
                     <table class="w-full text-sm text-left">
@@ -276,6 +278,15 @@
                         </thead>
                         <tbody id="adminQueueTable"></tbody>
                     </table>
+                </div>
+
+                <!-- ระบบควบคุมหน้า (Pagination) -->
+                <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
+                    <span id="adminQueuePageInfo" class="text-sm font-medium text-gray-600">หน้า 1 จาก 1</span>
+                    <div class="flex space-x-2">
+                        <button onclick="prevAdminQueuePage()" id="btnPrevAdminPage" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-bold text-sm">ก่อนหน้า</button>
+                        <button onclick="nextAdminQueuePage()" id="btnNextAdminPage" class="px-4 py-2 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-bold text-sm">ถัดไป</button>
+                    </div>
                 </div>
             </section>
         </div>
@@ -393,6 +404,8 @@
         let currentPatient = null; 
         let barcodeSetting = 'HN'; 
         let isSubmitting = false; 
+        let adminQueueCurrentPage = 1;
+        const adminQueueItemsPerPage = 30;
 
         // Attach functions to window object
         window.switchTab = switchTab;
@@ -405,7 +418,6 @@
         window.closeAdmin = closeAdmin;
         window.toggleVaccine = toggleVaccine;
         window.deleteQueue = deleteQueue;
-        window.clearQueue = clearQueue;
         window.saveBarcodeSetting = saveBarcodeSetting;
         window.downloadExcelTemplate = downloadExcelTemplate;
         window.handleExcelUpload = handleExcelUpload;
@@ -421,6 +433,8 @@
         window.verifyBarcode = verifyBarcode;
         window.cancelInjection = cancelInjection;
         window.editInjectedQueue = editInjectedQueue;
+        window.prevAdminQueuePage = prevAdminQueuePage;
+        window.nextAdminQueuePage = nextAdminQueuePage;
 
         signInAnonymously(auth).then(() => { initFirebaseListeners(); }).catch((err) => {
             Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้: ' + err.message, 'error');
@@ -479,7 +493,8 @@
             if (!auth.currentUser) return;
             onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'queue'), (snapshot) => {
                 queueData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                queueData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                // เรียงลำดับจาก 'เวลาล่าสุด' ไปหา 'เวลาเก่าสุด' (Descending)
+                queueData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                 renderAdminQueue();
                 renderInjectedList(); 
             });
@@ -844,7 +859,7 @@
             
             if (matchedQueue) {
                 if (matchedQueue.status === 'injected') {
-                    // Already Injected (Blue)
+                    // Already Injected
                     const timeStr = new Date(matchedQueue.injectTime || matchedQueue.timestamp).toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'});
                     resultBox.innerHTML = `
                         <div class="w-full p-5 border-2 border-blue-300 bg-blue-50 rounded-2xl pop-animation text-left shadow-sm">
@@ -858,7 +873,7 @@
                         </div>
                     `;
                 } else if (matchedQueue.decision === 'decline') {
-                    // Declined (Red)
+                    // Declined
                     resultBox.innerHTML = `
                         <div class="w-full p-5 border-2 border-red-300 bg-red-50 rounded-2xl pop-animation text-left shadow-sm">
                             <div class="flex items-center gap-2 mb-2 text-red-700 font-bold text-xl"><span class="text-2xl">❌</span> ปฏิเสธการรับวัคซีน</div>
@@ -870,7 +885,7 @@
                         </div>
                     `;
                 } else {
-                    // Ready to Inject -> Inject immediately! (Green)
+                    // Ready to Inject -> Inject immediately!
                     try {
                         const nowTime = new Date().toISOString();
                         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'queue', matchedQueue.id), {
@@ -895,7 +910,7 @@
                     }
                 }
             } else {
-                // Not found (Orange)
+                // Not found
                 resultBox.innerHTML = `
                     <div class="w-full p-5 border-2 border-orange-300 bg-orange-50 rounded-2xl pop-animation text-left shadow-sm">
                         <div class="flex items-center gap-2 mb-2 text-orange-700 font-bold text-xl"><span class="text-2xl">⚠️</span> ไม่พบประวัติคิว</div>
@@ -916,17 +931,14 @@
             if(!tbody) return;
             tbody.innerHTML = '';
             
-            // Filter injected, sort desc by inject time
             const injectedQueue = queueData.filter(q => q.status === 'injected');
             injectedQueue.sort((a, b) => new Date(b.injectTime || b.timestamp) - new Date(a.injectTime || a.timestamp)); 
 
-            // Update Count Badge
             const countBadge = document.getElementById('injectedCountBadge');
             if(countBadge) {
                 countBadge.innerText = `${injectedQueue.length} คน`;
-                // Re-trigger animation
                 countBadge.classList.remove('pop-animation');
-                void countBadge.offsetWidth; // trigger reflow
+                void countBadge.offsetWidth;
                 countBadge.classList.add('pop-animation');
             }
 
@@ -977,7 +989,7 @@
                         break;
                     }
                 }
-                if(!currentPrefix) currentFname = firstPart; // If prefix not matched, put everything in fname
+                if(!currentPrefix) currentFname = firstPart; 
             } else {
                 currentFname = q.name;
             }
@@ -1040,7 +1052,6 @@
                 try {
                     const newFullName = `${formValues.prefix || ''}${formValues.fname} ${formValues.lname}`.trim();
                     
-                    // 1. Update Queue Data
                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'queue', id), {
                         name: newFullName,
                         hn: formValues.hn,
@@ -1048,7 +1059,6 @@
                         vitals: formValues.vitals
                     }, { merge: true });
                     
-                    // 2. Update Patient Database (if cid exists)
                     if (q.cid) {
                         await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'patients', q.cid), {
                             prefix: formValues.prefix,
@@ -1090,17 +1100,89 @@
             });
         }
 
+        function renderAdminQueue() {
+            const tbody = document.getElementById('adminQueueTable');
+            const totalBadge = document.getElementById('adminQueueTotalBadge');
+            const pageInfo = document.getElementById('adminQueuePageInfo');
+            const btnPrev = document.getElementById('btnPrevAdminPage');
+            const btnNext = document.getElementById('btnNextAdminPage');
+
+            tbody.innerHTML = '';
+            
+            if(totalBadge) totalBadge.innerText = `รวม ${queueData.length} คน`;
+
+            if(queueData.length === 0) {
+                if(pageInfo) pageInfo.innerText = 'หน้า 1 จาก 1';
+                if(btnPrev) btnPrev.disabled = true;
+                if(btnNext) btnNext.disabled = true;
+                return tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-gray-500">ไม่มีคิวผู้รับบริการ</td></tr>';
+            }
+
+            const totalPages = Math.ceil(queueData.length / adminQueueItemsPerPage);
+            if (adminQueueCurrentPage > totalPages) adminQueueCurrentPage = totalPages;
+            if (adminQueueCurrentPage < 1) adminQueueCurrentPage = 1;
+
+            if(pageInfo) pageInfo.innerText = `หน้า ${adminQueueCurrentPage} จาก ${totalPages}`;
+            if(btnPrev) btnPrev.disabled = (adminQueueCurrentPage === 1);
+            if(btnNext) btnNext.disabled = (adminQueueCurrentPage === totalPages);
+
+            const startIndex = (adminQueueCurrentPage - 1) * adminQueueItemsPerPage;
+            const endIndex = startIndex + adminQueueItemsPerPage;
+            const paginatedData = queueData.slice(startIndex, endIndex);
+
+            paginatedData.forEach((q, index) => {
+                // คำนวณลำดับคิวให้ถูกต้อง (เรียงจากเก่าสุดเป็น 1 แต่โชว์ใหม่สุดไว้บน)
+                const actualIndex = queueData.length - (startIndex + index); 
+                const dateObj = new Date(q.timestamp), dateStr = dateObj.toLocaleDateString('th-TH', {day:'2-digit',month:'2-digit',year:'2-digit'}), timeStr = dateObj.toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'});
+                
+                let statusBadge = '';
+                if(q.status === 'injected') statusBadge = '<span class="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">ฉีดแล้ว</span>';
+                else if (q.decision === 'decline') statusBadge = '<span class="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">ไม่ยินยอม</span>';
+                else statusBadge = '<span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">รอฉีด</span>';
+
+                tbody.innerHTML += `<tr class="bg-white border-b hover:bg-gray-50">
+                    <td class="px-6 py-4 font-bold text-blue-600">#${actualIndex.toString().padStart(3,'0')}</td>
+                    <td class="px-6 py-4 text-xs">${dateStr} <br/><span class="font-bold text-gray-700">${timeStr} น.</span></td>
+                    <td class="px-6 py-4 font-bold text-blue-600">${q.hn||'-'}</td>
+                    <td class="px-6 py-4 font-medium">${q.name}</td>
+                    <td class="px-6 py-4">${q.vaccine}</td>
+                    <td class="px-6 py-4">${statusBadge}</td>
+                    <td class="px-6 py-4 space-x-2 flex items-center">
+                        <button onclick="printQueueItem('${q.id}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">ปรินต์</button>
+                        <button onclick="editInjectedQueue('${q.id}')" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">แก้ไข</button>
+                        <button onclick="deleteQueue('${q.id}')" class="text-red-500 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">ลบ</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        function prevAdminQueuePage() {
+            if (adminQueueCurrentPage > 1) {
+                adminQueueCurrentPage--;
+                renderAdminQueue();
+            }
+        }
+
+        function nextAdminQueuePage() {
+            const totalPages = Math.ceil(queueData.length / adminQueueItemsPerPage);
+            if (adminQueueCurrentPage < totalPages) {
+                adminQueueCurrentPage++;
+                renderAdminQueue();
+            }
+        }
+
+        function printQueueItem(id) { const q = queueData.find(i => i.id === id); if(q) printSlipWindow(q.name, q.cid, q.hn, q.vaccine, q.answers, q.decision === 'consent' ? 'ยินยอมรับการฉีดวัคซีน' : 'ไม่ยินยอมรับการฉีดวัคซีน', q.vitals?.weight, q.vitals?.height, q.vitals?.temp, q.vitals?.bp); }
+        function deleteQueue(id) { Swal.fire({ title: 'ยืนยันการลบ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }).then(async (res) => { if(res.isConfirmed) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'queue', id)); }); }
+        
+        async function saveBarcodeSetting(val) { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), { barcodeSetting: val }, { merge: true }); }
+
         function showAdminLogin() { 
             if(sessionStorage.getItem('adminUnlocked') === 'true') return document.getElementById('adminModal').classList.remove('hidden');
             Swal.fire({ title: 'Admin Login', input: 'password', showCancelButton: true, confirmButtonText: 'เข้าสู่ระบบ' })
             .then((res) => { 
                 if (res.isConfirmed) { 
-                    if (res.value === '1234') {
-                        sessionStorage.setItem('adminUnlocked', 'true');
-                        document.getElementById('adminModal').classList.remove('hidden'); 
-                    } else {
-                        Swal.fire({ icon: 'error', title: 'รหัสผิด' }); 
-                    }
+                    if (res.value === '1234') { sessionStorage.setItem('adminUnlocked', 'true'); document.getElementById('adminModal').classList.remove('hidden'); }
+                    else { Swal.fire({ icon: 'error', title: 'รหัสผิด' }); } 
                 } 
             }); 
         }
@@ -1189,37 +1271,6 @@
         function deleteVaccine(index) { Swal.fire({ title: 'ลบวัคซีน?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }).then(async (res) => { if (res.isConfirmed) { vaccinesData.splice(index, 1); await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), { vaccinesData }, { merge: true }); } }); }
         
         function updateVaccineSelect() { const s = document.getElementById('vaccineSelect'); s.innerHTML = '<option value="">-- กรุณาเลือกวัคซีน --</option>'; vaccinesData.forEach(v => { if(v.active) s.innerHTML += `<option value="${v.name}">${v.name}</option>`; }); }
-
-        function renderAdminQueue() {
-            const tbody = document.getElementById('adminQueueTable'); tbody.innerHTML = '';
-            if(queueData.length === 0) return tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-gray-500">ไม่มีคิว</td></tr>';
-            queueData.forEach((q, i) => {
-                const dateObj = new Date(q.timestamp), dateStr = dateObj.toLocaleDateString('th-TH', {day:'2-digit',month:'2-digit',year:'2-digit'}), timeStr = dateObj.toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'});
-                
-                let statusBadge = '';
-                if(q.status === 'injected') statusBadge = '<span class="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">ฉีดแล้ว</span>';
-                else if (q.decision === 'decline') statusBadge = '<span class="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">ไม่ยินยอม</span>';
-                else statusBadge = '<span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">รอฉีด</span>';
-
-                tbody.innerHTML += `<tr class="bg-white border-b hover:bg-gray-50"><td class="px-6 py-4 font-bold text-blue-600">#${(i+1).toString().padStart(3,'0')}</td><td class="px-6 py-4 text-xs">${dateStr} <br/><span class="font-bold text-gray-700">${timeStr} น.</span></td><td class="px-6 py-4 font-bold text-blue-600">${q.hn||'-'}</td><td class="px-6 py-4 font-medium">${q.name}</td><td class="px-6 py-4">${q.vaccine}</td><td class="px-6 py-4">${statusBadge}</td><td class="px-6 py-4 space-x-2 flex items-center"><button onclick="printQueueItem('${q.id}')" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-bold">ปริ้น</button><button onclick="editInjectedQueue('${q.id}')" class="text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-sm font-bold border border-blue-200">แก้ไข</button><button onclick="deleteQueue('${q.id}')" class="text-red-500 bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold">ลบ</button></td></tr>`;
-            });
-        }
-
-        function printQueueItem(id) { const q = queueData.find(i => i.id === id); if(q) printSlipWindow(q.name, q.cid, q.hn, q.vaccine, q.answers, q.decision === 'consent' ? 'ยินยอมรับการฉีดวัคซีน' : 'ไม่ยินยอมรับการฉีดวัคซีน', q.vitals?.weight, q.vitals?.height, q.vitals?.temp, q.vitals?.bp); }
-        
-        function deleteQueue(id) { 
-            Swal.fire({ title: 'ยืนยันการลบถาวร?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }).then(async (res) => { 
-                if(res.isConfirmed) {
-                    try {
-                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'queue', id)); 
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ลบสำเร็จ', showConfirmButton: false, timer: 2000 });
-                    } catch (error) { Swal.fire('ข้อผิดพลาด', 'ลบไม่สำเร็จ: ' + error.message, 'error'); }
-                }
-            }); 
-        }
-
-        function clearQueue() { Swal.fire({ title: 'ล้างคิวทั้งหมด?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }).then(async (res) => { if(res.isConfirmed){ const batch = writeBatch(db); queueData.forEach(q => batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'queue', q.id))); await batch.commit(); } }); }
-        async function saveBarcodeSetting(val) { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), { barcodeSetting: val }, { merge: true }); }
 
         function downloadExcelTemplate() {
             try {
