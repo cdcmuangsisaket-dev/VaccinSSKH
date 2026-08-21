@@ -439,6 +439,7 @@
         window.adminEditPatient = adminEditPatient;
         window.adminDeletePatient = adminDeletePatient;
         window.approvePatient = approvePatient;
+        window.rejectPatient = rejectPatient; // added this line
         window.downloadBatchPrintTemplate = downloadBatchPrintTemplate;
         window.handleBatchPrintUpload = handleBatchPrintUpload;
         window.verifyBarcode = verifyBarcode;
@@ -554,6 +555,19 @@
                 if(foundDoc) {
                     currentPatient = foundDoc;
                     
+                    // ดักจับ: ถ้าประวัติถูกแบน (ไม่ใช่เจ้าหน้าที่)
+                    if(currentPatient.isVerified === 'rejected') {
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'ระงับสิทธิ์การลงทะเบียน',
+                            text: 'เลขบัตรประชาชน หรือ รหัส HN นี้ ถูกตรวจสอบแล้วว่าไม่ใช่กลุ่มเป้าหมาย (ไม่ใช่เจ้าหน้าที่) ไม่สามารถทำรายการได้ หากมีข้อสงสัยติดต่อ Admin (3215)',
+                            confirmButtonColor: '#ef4444'
+                        });
+                        resetFormState();
+                        return;
+                    }
+
                     // ดักจับ: ถ้าเป็นข้อมูลที่ยังไม่ถูก verify ห้ามให้เข้าคิว
                     if(currentPatient.isVerified === false) {
                         document.getElementById('loadingOverlay').style.display = 'none';
@@ -691,7 +705,8 @@
                 html: `
                     <div class="text-left space-y-3 mt-4">
                         <div class="p-3 bg-yellow-50 text-yellow-800 text-xs rounded-xl border border-yellow-200 mb-2 leading-relaxed">
-                            <b>คำชี้แจง:</b> หากข้อมูลไม่ตรงกับฐานประชากรหลัก ระบบจะบันทึกแต่ต้องรอแอดมินยืนยันก่อน จึงจะรับคิวได้
+                            <b>คำชี้แจง:</b> กรอกข้อมูลทุกช่อง (ชื่อ-นามสกุลต้องตรงฐานข้อมูลเป๊ะ)<br>
+                            <span class="text-red-600 font-semibold mt-1 inline-block">* หากระบบตรวจสอบไม่พบชื่อในฐานข้อมูล จะต้องรอแอดมินยืนยันก่อน</span>
                         </div>
                         <div><label class="text-xs font-bold text-gray-700">เลขบัตร 13 หลัก <span class="text-red-500">*</span></label><input id="newCid" class="swal2-input w-full mx-0 mt-1 h-10 text-sm" placeholder="บังคับ 13 หลัก" maxlength="13" value="${defaultCid}"></div>
                         <div><label class="text-xs font-bold text-gray-700">รหัส HN <span class="text-red-500">*</span></label><input id="newHn" class="swal2-input w-full mx-0 mt-1 h-10 text-sm" value="${defaultHn}"></div>
@@ -740,11 +755,11 @@
                         Swal.fire({
                             icon: 'warning',
                             title: 'บันทึกประวัติสำเร็จ',
-                            text: 'เนื่องจากเป็นประวัติใหม่ จึงต้องรอให้ Admin (3215) กดยืนยันในระบบก่อน ถึงจะทำรายการรับวัคซีนได้',
+                            text: 'เนื่องจากเป็นประวัติใหม่ที่ไม่ตรงฐานข้อมูล จึงต้องรอให้ Admin (3215) กดยืนยันในระบบก่อน ถึงจะทำรายการรับวัคซีนได้',
                             confirmButtonColor: '#eab308'
                         });
                         resetFormState();
-                        return; // หยุดการทำงาน
+                        return; // หยุดการทำงาน ไม่ให้เข้าคิว
                     }
 
                     checkQueueAndProceed();
@@ -1103,8 +1118,7 @@
                             prefix: formValues.prefix,
                             fname: formValues.fname,
                             lname: formValues.lname,
-                            hn: formValues.hn,
-                            isVerified: true
+                            hn: formValues.hn
                         }, { merge: true });
                     }
 
@@ -1171,6 +1185,7 @@
             const paginatedData = queueData.slice(startIndex, endIndex);
 
             paginatedData.forEach((q, index) => {
+                // คำนวณลำดับคิวให้ถูกต้อง (เรียงจากเก่าสุดเป็น 1 แต่โชว์ใหม่สุดไว้บน)
                 const actualIndex = queueData.length - (startIndex + index); 
                 const dateObj = new Date(q.timestamp), dateStr = dateObj.toLocaleDateString('th-TH', {day:'2-digit',month:'2-digit',year:'2-digit'}), timeStr = dateObj.toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'});
                 
@@ -1252,6 +1267,7 @@
                             </div>
                             <div class="flex space-x-2">
                                 <button onclick="approvePatient('${doc.id}')" class="text-green-700 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">ยืนยันถูกต้อง</button>
+                                <button onclick="rejectPatient('${doc.id}')" class="text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">ปฏิเสธ</button>
                                 <button onclick="adminEditPatient('${doc.id}')" class="text-blue-600 bg-blue-100 hover:bg-blue-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">แก้ไข</button>
                             </div>
                         </div>
@@ -1271,6 +1287,29 @@
             } catch(e) {
                 Swal.fire('ข้อผิดพลาด', 'ไม่สามารถยืนยันได้: ' + e.message, 'error');
             }
+        }
+
+        async function rejectPatient(docId) {
+            Swal.fire({
+                title: 'ปฏิเสธและระงับสิทธิ์?',
+                text: "หากกดปฏิเสธ ผู้ป่วยรายนี้จะไม่สามารถนำเลขนี้มาลงทะเบียนได้อีก (จนกว่าแอดมินจะแก้ไข)",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'ยืนยันการปฏิเสธ',
+                cancelButtonText: 'ยกเลิก'
+            }).then(async (res) => {
+                if(res.isConfirmed) {
+                    try {
+                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'patients', docId), { isVerified: 'rejected' }, { merge: true });
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ระงับสิทธิ์สำเร็จ', showConfirmButton: false, timer: 1500 });
+                        loadUnverifiedPatients();
+                        adminSearchPatientDb();
+                    } catch(e) {
+                        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถทำรายการได้: ' + e.message, 'error');
+                    }
+                }
+            });
         }
 
         async function adminSearchPatientDb() {
@@ -1297,7 +1336,10 @@
                 if(foundDocs.size === 0) return container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">ไม่พบข้อมูลที่ค้นหา</p>';
                 
                 foundDocs.forEach((p, id) => {
-                    const statusTag = p.isVerified === false ? '<span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-md text-[10px] font-bold">รอการยืนยัน</span>' : '';
+                    let statusTag = '';
+                    if (p.isVerified === false) statusTag = '<span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-md text-[10px] font-bold">รอการยืนยัน</span>';
+                    else if (p.isVerified === 'rejected') statusTag = '<span class="ml-2 px-2 py-0.5 bg-red-100 text-red-700 rounded-md text-[10px] font-bold">ระงับสิทธิ์</span>';
+                    
                     container.innerHTML += `
                         <div class="flex justify-between items-center p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100">
                             <div>
