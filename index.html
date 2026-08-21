@@ -1239,7 +1239,7 @@
             Swal.fire({ title: 'Admin Login', input: 'password', showCancelButton: true, confirmButtonText: 'เข้าสู่ระบบ' })
             .then((res) => { 
                 if (res.isConfirmed) { 
-                    if (res.value === '1234') { 
+                    if (res.value === '1278') { 
                         sessionStorage.setItem('adminUnlocked', 'true'); 
                         document.getElementById('adminModal').classList.remove('hidden'); 
                         loadUnverifiedPatients();
