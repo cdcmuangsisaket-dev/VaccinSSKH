@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบแสดงความยินยอมการฉีดวัคซีน</title>
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -313,26 +312,22 @@
             </div>
             <div class="p-6 space-y-8">
                 
+                <div class="border rounded-xl p-5 bg-yellow-50 border-yellow-200">
+                    <h3 class="font-bold text-yellow-800 text-lg mb-2 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        รายการประวัติใหม่ (รอการยืนยัน)
+                    </h3>
+                    <p class="text-xs text-yellow-700 mb-4">เจ้าหน้าที่หน้างานเพิ่มรายชื่อเข้ามาใหม่ กรุณาตรวจสอบและกดยืนยันเพื่อให้คิวสามารถดำเนินการต่อได้</p>
+                    <div id="adminUnverifiedResults" class="space-y-2 max-h-60 overflow-y-auto">
+                        <p class="text-sm text-yellow-600 text-center py-4">กำลังโหลดข้อมูล...</p>
+                    </div>
+                </div>
+
                 <div class="border rounded-xl p-5 bg-gray-50">
                     <h3 class="font-bold text-gray-800 mb-3">0. การตั้งค่าบาร์โค้ดในใบหลักฐาน</h3>
                     <div class="flex space-x-6">
                         <label class="inline-flex items-center"><input type="radio" name="barcodeType" value="HN" class="form-radio text-blue-600 h-5 w-5" onchange="saveBarcodeSetting(this.value)" checked><span class="ml-2">ใช้รหัส HN</span></label>
                         <label class="inline-flex items-center"><input type="radio" name="barcodeType" value="CID" class="form-radio text-blue-600 h-5 w-5" onchange="saveBarcodeSetting(this.value)"><span class="ml-2">ใช้เลขประจำตัวประชาชน 13 หลัก</span></label>
-                    </div>
-                </div>
-
-                <!-- Unverified Patients Section -->
-                <div class="border rounded-xl p-5 bg-yellow-50 border-yellow-200">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-yellow-900 text-lg flex items-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                            รายการประวัติใหม่ (รอการยืนยัน)
-                        </h3>
-                        <button onclick="loadUnverifiedPatients()" class="text-sm bg-white border border-yellow-300 text-yellow-700 px-3 py-1.5 rounded-lg font-bold hover:bg-yellow-100 transition-colors shadow-sm">รีเฟรช</button>
-                    </div>
-                    <div id="adminUnverifiedList" class="space-y-2 max-h-60 overflow-y-auto">
-                        <!-- ลิสต์รายชื่อรอการยืนยัน -->
-                        <p class="text-sm text-gray-500 text-center py-4 bg-white rounded-xl border border-dashed border-gray-300">ไม่มีประวัติรอการยืนยัน</p>
                     </div>
                 </div>
 
@@ -443,6 +438,7 @@
         window.adminSearchPatientDb = adminSearchPatientDb;
         window.adminEditPatient = adminEditPatient;
         window.adminDeletePatient = adminDeletePatient;
+        window.approvePatient = approvePatient;
         window.downloadBatchPrintTemplate = downloadBatchPrintTemplate;
         window.handleBatchPrintUpload = handleBatchPrintUpload;
         window.verifyBarcode = verifyBarcode;
@@ -450,9 +446,6 @@
         window.editInjectedQueue = editInjectedQueue;
         window.prevAdminQueuePage = prevAdminQueuePage;
         window.nextAdminQueuePage = nextAdminQueuePage;
-        window.loadUnverifiedPatients = loadUnverifiedPatients;
-        window.approvePatient = approvePatient;
-        window.autoFillPatientInfo = autoFillPatientInfo;
 
         signInAnonymously(auth).then(() => { initFirebaseListeners(); }).catch((err) => {
             Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้: ' + err.message, 'error');
@@ -490,7 +483,7 @@
             Swal.fire({ title: 'ใส่รหัสเข้าดูรายชื่อคิว', input: 'password', showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#3b82f6' })
             .then((res) => { 
                 if (res.isConfirmed) { 
-                    if (res.value === '3013') { sessionStorage.setItem('queueUnlocked', 'true'); switchTab('queue'); } 
+                    if (res.value === '3215') { sessionStorage.setItem('queueUnlocked', 'true'); switchTab('queue'); } 
                     else { Swal.fire({icon:'error', title:'รหัสผิด', timer:1500, showConfirmButton:false}); } 
                 } 
             });
@@ -501,7 +494,7 @@
             Swal.fire({ title: 'ใส่รหัสเข้าหน้าจุดสแกน', input: 'password', showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#3b82f6' })
             .then((res) => { 
                 if (res.isConfirmed) { 
-                    if (res.value === '3013') { sessionStorage.setItem('scanUnlocked', 'true'); switchTab('scan'); } 
+                    if (res.value === '3215') { sessionStorage.setItem('scanUnlocked', 'true'); switchTab('scan'); } 
                     else { Swal.fire({icon:'error', title:'รหัสผิด', timer:1500, showConfirmButton:false}); } 
                 } 
             });
@@ -560,6 +553,20 @@
 
                 if(foundDoc) {
                     currentPatient = foundDoc;
+                    
+                    // ดักจับ: ถ้าเป็นข้อมูลที่ยังไม่ถูก verify ห้ามให้เข้าคิว
+                    if(currentPatient.isVerified === false) {
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'ประวัตินี้รอการยืนยัน',
+                            text: 'ไม่สามารถทำรายการเข้าคิวได้ กรุณาติดต่อ Admin (3215) เพื่อทำการตรวจสอบและยืนยันประวัติในระบบ',
+                            confirmButtonColor: '#eab308'
+                        });
+                        resetFormState();
+                        return;
+                    }
+                    
                     checkQueueAndProceed();
                 } else {
                     Swal.fire({ title: 'ไม่พบข้อมูลในระบบ', text: "เพิ่มประวัติผู้รับบริการรายใหม่หรือไม่?", icon: 'question', showCancelButton: true, confirmButtonColor: '#10b981', cancelButtonColor: '#6b7280', confirmButtonText: 'เพิ่มประวัติ', cancelButtonText: 'ยกเลิก' })
@@ -684,7 +691,7 @@
                 html: `
                     <div class="text-left space-y-3 mt-4">
                         <div class="p-3 bg-yellow-50 text-yellow-800 text-xs rounded-xl border border-yellow-200 mb-2 leading-relaxed">
-                            <b>คำชี้แจง:</b> หากข้อมูลไม่ตรงกับฐานประชากรหลัก ระบบจะบันทึกแต่ต้องรอแอดมินยืนยันภายหลัง
+                            <b>คำชี้แจง:</b> หากข้อมูลไม่ตรงกับฐานประชากรหลัก ระบบจะบันทึกแต่ต้องรอแอดมินยืนยันก่อน จึงจะรับคิวได้
                         </div>
                         <div><label class="text-xs font-bold text-gray-700">เลขบัตร 13 หลัก <span class="text-red-500">*</span></label><input id="newCid" class="swal2-input w-full mx-0 mt-1 h-10 text-sm" placeholder="บังคับ 13 หลัก" maxlength="13" value="${defaultCid}"></div>
                         <div><label class="text-xs font-bold text-gray-700">รหัส HN <span class="text-red-500">*</span></label><input id="newHn" class="swal2-input w-full mx-0 mt-1 h-10 text-sm" value="${defaultHn}"></div>
@@ -709,7 +716,7 @@
                     if(!prefix || !fname || !lname) { Swal.showValidationMessage('กรอกคำนำหน้า ชื่อ นามสกุลให้ครบ'); return false; }
                     if(!phone || phone.length !== 4 || isNaN(phone)) { Swal.showValidationMessage('เบอร์โทรต้องเป็นเลข 4 หลัก'); return false; }
                     
-                    // Check if user exists in database to decide verification status
+                    // Check if name exists in DB, if so auto verify, if not wait for admin
                     const qs = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), where("fname", "==", fname), limit(10)));
                     const matched = qs.docs.map(d=>d.data()).find(d => (d.lname || '').trim() === lname);
                     const isVerified = matched ? true : false;
@@ -723,18 +730,30 @@
                 try {
                     const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'patients', formValues.cid));
                     if(snap.exists()) { Swal.fire('ข้อผิดพลาด', 'เลขบัตร 13 หลักนี้ มีอยู่ในระบบแล้ว', 'error'); document.getElementById('loadingOverlay').style.display = 'none'; return; }
+                    
                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'patients', formValues.cid), formValues);
                     currentPatient = formValues;
-                    if(!formValues.isVerified) {
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'บันทึกแล้ว (รอแอดมินยืนยัน)', showConfirmButton: false, timer: 3000 });
+                    
+                    // บล็อกทันทีถ้าไม่ได้ verified
+                    if(formValues.isVerified === false) {
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'บันทึกประวัติสำเร็จ',
+                            text: 'เนื่องจากเป็นประวัติใหม่ จึงต้องรอให้ Admin (3215) กดยืนยันในระบบก่อน ถึงจะทำรายการรับวัคซีนได้',
+                            confirmButtonColor: '#eab308'
+                        });
+                        resetFormState();
+                        return; // หยุดการทำงาน
                     }
+
                     checkQueueAndProceed();
                 } catch(err) { Swal.fire('ข้อผิดพลาด', err.message, 'error'); }
                 finally { document.getElementById('loadingOverlay').style.display = 'none'; }
             }
         }
 
-        async function autoFillPatientInfo() {
+        window.autoFillPatientInfo = async function() {
             const f = document.getElementById('newFname').value.trim();
             const l = document.getElementById('newLname').value.trim();
             if(f && l) {
@@ -1084,7 +1103,8 @@
                             prefix: formValues.prefix,
                             fname: formValues.fname,
                             lname: formValues.lname,
-                            hn: formValues.hn
+                            hn: formValues.hn,
+                            isVerified: true
                         }, { merge: true });
                     }
 
@@ -1151,7 +1171,6 @@
             const paginatedData = queueData.slice(startIndex, endIndex);
 
             paginatedData.forEach((q, index) => {
-                // คำนวณลำดับคิวให้ถูกต้อง (เรียงจากเก่าสุดเป็น 1 แต่โชว์ใหม่สุดไว้บน)
                 const actualIndex = queueData.length - (startIndex + index); 
                 const dateObj = new Date(q.timestamp), dateStr = dateObj.toLocaleDateString('th-TH', {day:'2-digit',month:'2-digit',year:'2-digit'}), timeStr = dateObj.toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'});
                 
@@ -1196,48 +1215,6 @@
         
         async function saveBarcodeSetting(val) { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), { barcodeSetting: val }, { merge: true }); }
 
-        async function loadUnverifiedPatients() {
-            const container = document.getElementById('adminUnverifiedList');
-            if(!container) return;
-            container.innerHTML = '<p class="text-sm text-yellow-600 text-center py-2">กำลังดึงข้อมูล...</p>';
-            try {
-                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), where("isVerified", "==", false), limit(50));
-                const qs = await getDocs(q);
-                container.innerHTML = '';
-                if(qs.empty) {
-                    container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">ไม่มีประวัติรอการยืนยัน</p>';
-                    return;
-                }
-                qs.forEach(docSnap => {
-                    const p = docSnap.data();
-                    container.innerHTML += `
-                        <div class="flex justify-between items-center p-3 bg-white border border-yellow-200 rounded-xl shadow-sm hover:border-yellow-300 transition-colors">
-                            <div>
-                                <p class="font-bold text-gray-800 text-sm">${p.prefix||''}${p.fname||''} ${p.lname||''}</p>
-                                <p class="text-xs text-gray-500">CID: ${p.cid||'-'} | HN: ${p.hn||'-'}</p>
-                            </div>
-                            <div class="flex space-x-2">
-                                <button onclick="approvePatient('${docSnap.id}')" class="text-green-700 bg-green-100 hover:bg-green-200 px-3 py-2 rounded-lg text-xs font-bold transition-colors border border-green-200">ยืนยันถูกต้อง</button>
-                                <button onclick="adminEditPatient('${docSnap.id}')" class="text-blue-600 bg-blue-100 hover:bg-blue-200 px-3 py-2 rounded-lg text-xs font-bold transition-colors border border-blue-200">แก้ไข</button>
-                            </div>
-                        </div>`;
-                });
-            } catch (e) {
-                container.innerHTML = '<p class="text-sm text-red-500 text-center py-2">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>';
-            }
-        }
-
-        async function approvePatient(docId) {
-            try {
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'patients', docId), { isVerified: true });
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ยืนยันประวัติสำเร็จ', showConfirmButton: false, timer: 1500 });
-                loadUnverifiedPatients();
-                if(document.getElementById('adminSearchInput').value.trim()) adminSearchPatientDb();
-            } catch (e) {
-                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถยืนยันได้: ' + e.message, 'error');
-            }
-        }
-
         function showAdminLogin() { 
             if(sessionStorage.getItem('adminUnlocked') === 'true') {
                 document.getElementById('adminModal').classList.remove('hidden');
@@ -1256,8 +1233,45 @@
                 } 
             }); 
         }
-        
         function closeAdmin() { document.getElementById('adminModal').classList.add('hidden'); updateVaccineSelect(); }
+
+        async function loadUnverifiedPatients() {
+            const container = document.getElementById('adminUnverifiedResults');
+            container.innerHTML = '<p class="text-sm text-yellow-600 text-center py-4">กำลังโหลดข้อมูล...</p>';
+            try {
+                const qs = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), where("isVerified", "==", false), limit(50)));
+                if(qs.empty) return container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">ไม่มีประวัติใหม่ที่รอการยืนยัน</p>';
+                container.innerHTML = '';
+                qs.forEach(doc => {
+                    const p = doc.data();
+                    container.innerHTML += `
+                        <div class="flex justify-between items-center p-3 bg-white border border-yellow-200 rounded-lg shadow-sm">
+                            <div>
+                                <p class="font-bold text-gray-800 text-sm">${p.prefix||''}${p.fname||''} ${p.lname||''}</p>
+                                <p class="text-xs text-gray-500">CID: ${p.cid||'-'} | HN: ${p.hn||'-'} | โทร: ${p.phone||'-'}</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="approvePatient('${doc.id}')" class="text-green-700 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">ยืนยันถูกต้อง</button>
+                                <button onclick="adminEditPatient('${doc.id}')" class="text-blue-600 bg-blue-100 hover:bg-blue-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">แก้ไข</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch(e) {
+                container.innerHTML = '<p class="text-sm text-red-500 text-center py-4">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>';
+            }
+        }
+
+        async function approvePatient(docId) {
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'patients', docId), { isVerified: true }, { merge: true });
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ยืนยันประวัติสำเร็จ', showConfirmButton: false, timer: 1500 });
+                loadUnverifiedPatients();
+                adminSearchPatientDb(); // Refresh if search is active
+            } catch(e) {
+                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถยืนยันได้: ' + e.message, 'error');
+            }
+        }
 
         async function adminSearchPatientDb() {
             const rawQuery = document.getElementById('adminSearchInput').value.trim();
@@ -1283,11 +1297,17 @@
                 if(foundDocs.size === 0) return container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">ไม่พบข้อมูลที่ค้นหา</p>';
                 
                 foundDocs.forEach((p, id) => {
-                    let vBadge = p.isVerified === false ? '<span class="ml-2 bg-yellow-100 text-yellow-700 text-[10px] px-1.5 py-0.5 rounded-md font-medium border border-yellow-200">รอการยืนยัน</span>' : '';
+                    const statusTag = p.isVerified === false ? '<span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-md text-[10px] font-bold">รอการยืนยัน</span>' : '';
                     container.innerHTML += `
                         <div class="flex justify-between items-center p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100">
-                            <div><p class="font-bold text-gray-800 text-sm">${p.prefix||''}${p.fname||''} ${p.lname||''}${vBadge}</p><p class="text-xs text-gray-500">CID: ${p.cid||'-'} | HN: ${p.hn||'-'} | โทร: ${p.phone||'-'}</p></div>
-                            <div class="flex space-x-2"><button onclick="adminEditPatient('${id}')" class="text-blue-600 bg-blue-100 px-3 py-1.5 rounded-lg text-xs font-bold">แก้ไข</button><button onclick="adminDeletePatient('${id}')" class="text-red-600 bg-red-100 px-3 py-1.5 rounded-lg text-xs font-bold">ลบ</button></div>
+                            <div>
+                                <p class="font-bold text-gray-800 text-sm">${p.prefix||''}${p.fname||''} ${p.lname||''} ${statusTag}</p>
+                                <p class="text-xs text-gray-500">CID: ${p.cid||'-'} | HN: ${p.hn||'-'} | โทร: ${p.phone||'-'}</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="adminEditPatient('${id}')" class="text-blue-600 bg-blue-100 px-3 py-1.5 rounded-lg text-xs font-bold">แก้ไข</button>
+                                <button onclick="adminDeletePatient('${id}')" class="text-red-600 bg-red-100 px-3 py-1.5 rounded-lg text-xs font-bold">ลบ</button>
+                            </div>
                         </div>`;
                 });
             } catch (e) { container.innerHTML = '<p class="text-sm text-red-500 text-center py-4">เกิดข้อผิดพลาด</p>'; }
@@ -1305,13 +1325,13 @@
                     const cid = document.getElementById('editCid').value.trim(), hn = document.getElementById('editHn').value.trim(), prefix = document.getElementById('editPrefix').value.trim(), fname = document.getElementById('editFname').value.trim(), lname = document.getElementById('editLname').value.trim(), phone = document.getElementById('editPhone').value.trim();
                     if(!validateThaiId(cid)) return Swal.showValidationMessage('เลข 13 หลักไม่ถูกต้อง');
                     if(!phone || phone.length!==4 || isNaN(phone)) return Swal.showValidationMessage('เบอร์โทรต้อง 4 หลัก');
-                    return { cid, hn, prefix, fname, lname, phone };
+                    return { cid, hn, prefix, fname, lname, phone, isVerified: true }; // Admin editing sets it to verified automatically
                 }
             });
             if(formValues) { 
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'patients', docId), { ...formValues, isVerified: true }, { merge: true }); 
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'patients', docId), formValues, { merge: true }); 
                 adminSearchPatientDb(); 
-                loadUnverifiedPatients(); 
+                loadUnverifiedPatients();
             }
         }
 
@@ -1376,7 +1396,8 @@
                 cid: getVal(['เลขบัตรประชาชน', 'เลขประจำตัวประชาชน', 'cid']).replace(/[^0-9]/g, ''),
                 hn: getVal(['รหัส hn', 'hn']), prefix: getVal(['คำนำหน้า', 'prefix']),
                 fname: getVal(['ชื่อ', 'fname']), lname: getVal(['นามสกุล', 'lname']),
-                phone: getVal(['เบอร์โทรหน่วยงาน', 'เบอร์โทร', 'phone']).replace(/[^0-9]/g, '')
+                phone: getVal(['เบอร์โทรหน่วยงาน', 'เบอร์โทร', 'phone']).replace(/[^0-9]/g, ''),
+                isVerified: true // Excel import implies verified by admin
             };
         }
 
@@ -1392,11 +1413,7 @@
                         document.getElementById('loadingOverlay').style.display = 'flex';
                         for (let i = 0; i < validPatients.length; i += 400) {
                             const batch = writeBatch(db);
-                            validPatients.slice(i, i + 400).forEach(p => { 
-                                const docId = (p.cid && p.cid.length === 13) ? p.cid : (p.hn ? p.hn : `${p.fname}_${p.lname}`); 
-                                // Auto-verify bulk uploaded patients
-                                batch.set(doc(db, 'artifacts', appId, 'public', 'data', 'patients', docId), { ...p, isVerified: true }, { merge: true }); 
-                            });
+                            validPatients.slice(i, i + 400).forEach(p => { const docId = (p.cid && p.cid.length === 13) ? p.cid : (p.hn ? p.hn : `${p.fname}_${p.lname}`); batch.set(doc(db, 'artifacts', appId, 'public', 'data', 'patients', docId), p, { merge: true }); });
                             await batch.commit();
                         }
                         Swal.fire('สำเร็จ', `นำเข้า ${validPatients.length} รายการ (อัปเดตข้อมูลทับซ้อนอัตโนมัติ)`, 'success');
