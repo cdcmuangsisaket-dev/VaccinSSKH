@@ -561,7 +561,7 @@
             
             if (existingQueue) {
                 let sText = existingQueue.status === 'injected' ? 'ฉีดวัคซีนแล้ว' : (existingQueue.decision === 'decline' ? 'ไม่ยินยอม' : 'รอฉีด');
-                Swal.fire({ icon: 'info', title: 'ลงทะเบียนแล้ว', text: `ผู้รับบริการนี้ทำรายการของปี ${currentYear} ไปแล้ว รับริการฉีดได้ที่อาคาร OPD ชั้น 5 วันที่ 24,26,27,28 สิงหาคม 2569 เวลา 08.30 - 11.30 น. (สถานะ: ${sText})`, showCancelButton: true, confirmButtonText: 'พิมพ์ใบยินยอม/สร้างรูปภาพซ้ำ', cancelButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#3b82f6' })
+                Swal.fire({ icon: 'info', title: 'ลงทะเบียนแล้ว', text: `ผู้รับบริการนี้ทำรายการของปี ${currentYear} ไปแล้ว รับริการฉีดได้ที่อาคาร OPD ชั้น 5 วันที่ 24,26,27,28 สิงหาคม 2569 เวลา 08.30 - 11.30 น. (สถานะ: ${sText}) พบปัญหาติดต่อ 3215`, showCancelButton: true, confirmButtonText: 'พิมพ์ใบยินยอม/สร้างรูปภาพซ้ำ', cancelButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#3b82f6' })
                 .then((res) => { 
                     if(res.isConfirmed) {
                         const dText = existingQueue.decision === 'consent' ? 'ยินยอมรับการฉีดวัคซีน' : 'ไม่ยินยอมรับการฉีดวัคซีน';
