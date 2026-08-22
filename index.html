@@ -296,8 +296,9 @@
     </footer>
 
     <!-- Admin Float Button -->
-    <button onclick="showAdminLogin()" class="fixed bottom-6 right-6 bg-gray-800 hover:bg-gray-900 text-white p-4 rounded-full shadow-2xl transition-transform hover:scale-110 flex items-center group z-50">
+    <button onclick="showAdminLogin()" class="fixed bottom-4 right-4 bg-gray-800/70 hover:bg-gray-900 text-white w-12 h-12 rounded-full shadow-lg transition-all hover:scale-110 flex items-center justify-center z-50 backdrop-blur-sm focus:outline-none">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+        <span id="adminAlertBadge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold min-w-[20px] h-[20px] flex items-center justify-center rounded-full border-2 border-white shadow-sm">0</span>
     </button>
 
     <!-- Admin Modal -->
@@ -439,7 +440,7 @@
         window.adminEditPatient = adminEditPatient;
         window.adminDeletePatient = adminDeletePatient;
         window.approvePatient = approvePatient;
-        window.rejectPatient = rejectPatient; // added this line
+        window.rejectPatient = rejectPatient;
         window.downloadBatchPrintTemplate = downloadBatchPrintTemplate;
         window.handleBatchPrintUpload = handleBatchPrintUpload;
         window.verifyBarcode = verifyBarcode;
@@ -516,6 +517,22 @@
                     if (data.barcodeSetting) { barcodeSetting = data.barcodeSetting; document.querySelector(`input[name="barcodeType"][value="${barcodeSetting}"]`).checked = true; }
                     if (data.vaccinesData) { vaccinesData = data.vaccinesData; updateVaccineSelect(); renderAdminVaccines(); }
                 } else setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), { barcodeSetting: 'HN', vaccinesData: vaccinesData });
+            });
+
+            // ตรวจสอบยอดคนที่รอ Admin ยืนยันแบบ Real-time
+            onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), where("isVerified", "==", false)), (snapshot) => {
+                const count = snapshot.size;
+                const badge = document.getElementById('adminAlertBadge');
+                if(count > 0) {
+                    badge.innerText = count;
+                    badge.classList.remove('hidden');
+                    // เติมเอฟเฟกต์เด้งดึ๋งเมื่อตัวเลขเปลี่ยน
+                    badge.classList.remove('pop-animation');
+                    void badge.offsetWidth; // trigger reflow
+                    badge.classList.add('pop-animation');
+                } else {
+                    badge.classList.add('hidden');
+                }
             });
         }
 
