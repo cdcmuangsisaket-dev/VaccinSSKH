@@ -952,7 +952,7 @@
             document.getElementById('vitalWeight').value = ''; document.getElementById('vitalHeight').value = ''; document.getElementById('vitalTemp').value = ''; document.getElementById('vitalPr').value = ''; document.getElementById('vitalBp').value = '';
         }
 
-        async function verifyBarcode() {
+        function verifyBarcode() {
             const scanInput = document.getElementById('scanInput');
             const resultBox = document.getElementById('scanResult');
             const barcode = scanInput.value.trim().replace(/^0+/, ''); 
@@ -994,7 +994,7 @@
                     // Ready to Inject -> Inject immediately!
                     try {
                         const nowTime = new Date().toISOString();
-                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'queue', matchedQueue.id), {
+                        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'queue', matchedQueue.id), {
                             status: 'injected',
                             injectTime: nowTime
                         });
@@ -1037,7 +1037,21 @@
             if(!tbody) return;
             tbody.innerHTML = '';
             
-            const injectedQueue = queueData.filter(q => q.status === 'injected');
+            // หาวันที่ปัจจุบัน (เวลา 00:00:00) เพื่อนำไปเปรียบเทียบ
+            const today = new Date();
+            const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+            
+            // กรองเอาเฉพาะคนที่ฉีดแล้ว และยิงบาร์โค้ด "ในวันนี้"
+            const injectedQueue = queueData.filter(q => {
+                if (q.status !== 'injected') return false;
+                
+                // ใช้ injectTime เป็นหลัก ถ้าข้อมูลเก่าไม่มีให้ fallback กลับไปใช้ timestamp
+                const timeToCompare = q.injectTime ? new Date(q.injectTime).getTime() : new Date(q.timestamp).getTime();
+                
+                return timeToCompare >= startOfToday;
+            });
+            
+            // เรียงลำดับเอาคนที่เพิ่งยิงล่าสุดไว้บนสุด
             injectedQueue.sort((a, b) => new Date(b.injectTime || b.timestamp) - new Date(a.injectTime || a.timestamp)); 
 
             const countBadge = document.getElementById('injectedCountBadge');
