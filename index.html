@@ -265,6 +265,13 @@
                             <span id="adminQueueTotalBadge" class="ml-3 bg-blue-100 text-blue-700 py-1 px-4 rounded-full text-sm font-bold shadow-sm">รวม 0 คน</span>
                         </h3>
                     </div>
+                    <!-- ช่องค้นหาในหน้าคิวแอดมิน -->
+                    <div class="w-full sm:w-72">
+                        <div class="relative">
+                            <input type="text" id="queueSearchInput" class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm shadow-sm transition-all" placeholder="ค้นหาชื่อ, สกุล, HN, เลขบัตร..." onkeyup="searchAdminQueue()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        </div>
+                    </div>
                 </div>
                 <div class="overflow-x-auto rounded-2xl border border-gray-100">
                     <table class="w-full text-sm text-left">
@@ -421,6 +428,7 @@
         let isSubmitting = false; 
         let adminQueueCurrentPage = 1;
         const adminQueueItemsPerPage = 30;
+        let queueSearchQuery = '';
 
         // Attach functions to window object
         window.switchTab = switchTab;
@@ -452,7 +460,7 @@
         window.editInjectedQueue = editInjectedQueue;
         window.prevAdminQueuePage = prevAdminQueuePage;
         window.nextAdminQueuePage = nextAdminQueuePage;
-        window.autoFillPatientInfo = autoFillPatientInfo;
+        window.searchAdminQueue = searchAdminQueue;
 
         signInAnonymously(auth).then(() => { initFirebaseListeners(); }).catch((err) => {
             Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้: ' + err.message, 'error');
@@ -558,26 +566,21 @@
                 const patientsRef = collection(db, 'artifacts', appId, 'public', 'data', 'patients');
                 let foundDoc = null;
 
-                // ยืดหยุ่นการค้นหา: ไม่บังคับว่าต้องเป็น 13 หลักถึงหา CID ได้ ลองหาทุกท่า
-                const cleanQuery = rawQuery.replace(/^0+/, ''); // ปอก 0 ออกสำหรับ HN บางรูปแบบ
+                const cleanQuery = rawQuery.replace(/^0+/, ''); 
 
-                // 1. ลองหาจาก Document ID โดยตรงก่อน
                 let snap = await getDoc(doc(patientsRef, rawQuery));
                 if(snap.exists()) foundDoc = { ...snap.data(), docId: snap.id };
                 
-                // 2. ถ้าไม่เจอ ลองหาในฟิลด์ cid
                 if(!foundDoc) {
                     const qsCid = await getDocs(query(patientsRef, where("cid", "==", rawQuery), limit(1)));
                     if(!qsCid.empty) foundDoc = { ...qsCid.docs[0].data(), docId: qsCid.docs[0].id };
                 }
 
-                // 3. ถ้าไม่เจอ ลองหาในฟิลด์ hn (แบบตรงเป๊ะ)
                 if(!foundDoc) {
                     const qsHn = await getDocs(query(patientsRef, where("hn", "==", rawQuery), limit(1)));
                     if(!qsHn.empty) foundDoc = { ...qsHn.docs[0].data(), docId: qsHn.docs[0].id };
                 }
 
-                // 4. ถ้าไม่เจอ ลองหาในฟิลด์ hn (แบบตัด 0 ข้างหน้าออก)
                 if(!foundDoc && cleanQuery !== rawQuery) {
                     const qsHnClean = await getDocs(query(patientsRef, where("hn", "==", cleanQuery), limit(1)));
                     if(!qsHnClean.empty) foundDoc = { ...qsHnClean.docs[0].data(), docId: qsHnClean.docs[0].id };
@@ -630,7 +633,6 @@
             const existingQueue = queueData.find(q => q.cid === currentPatient.cid && new Date(q.timestamp).getFullYear() === currentYear);
             
             if (existingQueue) {
-                // ถ้าคิวที่มีอยู่ มีสถานะเป็น 'waiting' หรือ 'injected' ก็แจ้งเตือนให้ปรินต์ซ้ำ หรือไปรอฉีดเลย ไม่บล็อกการทำงานแอดมิน
                 if(existingQueue.status === 'injected' || existingQueue.decision === 'decline') {
                     let sText = existingQueue.status === 'injected' ? 'ฉีดวัคซีนแล้ว' : 'ไม่ยินยอม';
                     Swal.fire({ icon: 'info', title: 'จบกระบวนการแล้ว', text: `ผู้รับบริการนี้ทำรายการของปี ${currentYear} จบไปแล้ว (สถานะ: ${sText}) รับบริการฉีดได้ที่อาคาร OPD ชั้น 5 วันที่ 24,26,27,28 สิงหาคม 2569 เวลา 08.30 - 11.30 น. พบปัญหาติดต่อ 3215`, showCancelButton: true, confirmButtonText: 'พิมพ์ใบยินยอม/สร้างรูปภาพซ้ำ', cancelButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#3b82f6' })
@@ -828,7 +830,7 @@
             }
         }
 
-        async function autoFillPatientInfo() {
+        window.autoFillPatientInfo = async function() {
             let f = document.getElementById('newFname').value.trim();
             const l = document.getElementById('newLname').value.trim();
             if(f && l) {
@@ -1276,6 +1278,13 @@
             });
         }
 
+        // ฟังก์ชันรับค่าการพิมพ์ค้นหา
+        function searchAdminQueue() {
+            queueSearchQuery = document.getElementById('queueSearchInput').value.trim().toLowerCase();
+            adminQueueCurrentPage = 1; // เวลามีการค้นหา ให้กลับไปหน้า 1 เสมอ
+            renderAdminQueue();
+        }
+
         function renderAdminQueue() {
             const tbody = document.getElementById('adminQueueTable');
             const totalBadge = document.getElementById('adminQueueTotalBadge');
@@ -1285,16 +1294,37 @@
 
             tbody.innerHTML = '';
             
-            if(totalBadge) totalBadge.innerText = `รวม ${queueData.length} คน`;
+            // 1. แนบลำดับคิวออริจินัลเข้าไปก่อนกรอง (เพื่อให้เลขคิวไม่เพี้ยนเวลาค้นหา)
+            const mappedQueue = queueData.map((q, idx) => ({
+                ...q,
+                actualIndex: queueData.length - idx
+            }));
 
-            if(queueData.length === 0) {
+            // 2. กรองข้อมูลตามคำค้นหา
+            let filteredQueue = mappedQueue;
+            if (queueSearchQuery) {
+                const cleanQuery = queueSearchQuery.replace(/\s+/g, ''); // ตัดสเปซบาร์ทิ้ง
+                filteredQueue = mappedQueue.filter(q => {
+                    const nMatch = (q.name || '').toLowerCase().replace(/\s+/g, '').includes(cleanQuery);
+                    const hMatch = (q.hn || '').toLowerCase().includes(queueSearchQuery);
+                    const cMatch = (q.cid || '').includes(queueSearchQuery);
+                    return nMatch || hMatch || cMatch; // เจอในชื่อ, HN หรือ 13 หลัก ก็ผ่าน
+                });
+            }
+
+            if(totalBadge) {
+                if(queueSearchQuery) totalBadge.innerText = `ค้นพบ ${filteredQueue.length} คน`;
+                else totalBadge.innerText = `รวม ${queueData.length} คน`;
+            }
+
+            if(filteredQueue.length === 0) {
                 if(pageInfo) pageInfo.innerText = 'หน้า 1 จาก 1';
                 if(btnPrev) btnPrev.disabled = true;
                 if(btnNext) btnNext.disabled = true;
-                return tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-gray-500">ไม่มีคิวผู้รับบริการ</td></tr>';
+                return tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-gray-500">${queueSearchQuery ? 'ไม่พบข้อมูลที่ค้นหา' : 'ไม่มีคิวผู้รับบริการ'}</td></tr>`;
             }
 
-            const totalPages = Math.ceil(queueData.length / adminQueueItemsPerPage);
+            const totalPages = Math.ceil(filteredQueue.length / adminQueueItemsPerPage);
             if (adminQueueCurrentPage > totalPages) adminQueueCurrentPage = totalPages;
             if (adminQueueCurrentPage < 1) adminQueueCurrentPage = 1;
 
@@ -1304,11 +1334,11 @@
 
             const startIndex = (adminQueueCurrentPage - 1) * adminQueueItemsPerPage;
             const endIndex = startIndex + adminQueueItemsPerPage;
-            const paginatedData = queueData.slice(startIndex, endIndex);
+            const paginatedData = filteredQueue.slice(startIndex, endIndex);
 
-            paginatedData.forEach((q, index) => {
-                // คำนวณลำดับคิวให้ถูกต้อง (เรียงจากเก่าสุดเป็น 1 แต่โชว์ใหม่สุดไว้บน)
-                const actualIndex = queueData.length - (startIndex + index); 
+            paginatedData.forEach((q) => {
+                // ใช้ลำดับคิวของจริงที่คำนวณไว้ตั้งแต่แรก
+                const actualIndex = q.actualIndex; 
                 const dateObj = new Date(q.timestamp), dateStr = dateObj.toLocaleDateString('th-TH', {day:'2-digit',month:'2-digit',year:'2-digit'}), timeStr = dateObj.toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'});
                 
                 let statusBadge = '';
