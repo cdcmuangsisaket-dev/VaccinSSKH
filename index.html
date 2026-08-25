@@ -452,6 +452,7 @@
         window.editInjectedQueue = editInjectedQueue;
         window.prevAdminQueuePage = prevAdminQueuePage;
         window.nextAdminQueuePage = nextAdminQueuePage;
+        window.autoFillPatientInfo = autoFillPatientInfo;
 
         signInAnonymously(auth).then(() => { initFirebaseListeners(); }).catch((err) => {
             Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้: ' + err.message, 'error');
@@ -557,25 +558,29 @@
                 const patientsRef = collection(db, 'artifacts', appId, 'public', 'data', 'patients');
                 let foundDoc = null;
 
-                if (rawQuery.length === 13 && !isNaN(rawQuery)) {
-                    let snap = await getDoc(doc(patientsRef, rawQuery));
-                    if(snap.exists()) foundDoc = { ...snap.data(), docId: snap.id };
-                    else {
-                        const qs = await getDocs(query(patientsRef, where("cid", "==", rawQuery), limit(1)));
-                        if(!qs.empty) foundDoc = { ...qs.docs[0].data(), docId: qs.docs[0].id };
-                    }
-                } else {
-                    const cleanHn = rawQuery.replace(/^0+/, '');
-                    let snap1 = await getDoc(doc(patientsRef, rawQuery));
-                    if(snap1.exists()) foundDoc = { ...snap1.data(), docId: snap1.id };
-                    else {
-                        const qs1 = await getDocs(query(patientsRef, where("hn", "==", rawQuery), limit(1)));
-                        if(!qs1.empty) foundDoc = { ...qs1.docs[0].data(), docId: qs1.docs[0].id };
-                        else if(cleanHn !== rawQuery) {
-                            const qs2 = await getDocs(query(patientsRef, where("hn", "==", cleanHn), limit(1)));
-                            if(!qs2.empty) foundDoc = { ...qs2.docs[0].data(), docId: qs2.docs[0].id };
-                        }
-                    }
+                // ยืดหยุ่นการค้นหา: ไม่บังคับว่าต้องเป็น 13 หลักถึงหา CID ได้ ลองหาทุกท่า
+                const cleanQuery = rawQuery.replace(/^0+/, ''); // ปอก 0 ออกสำหรับ HN บางรูปแบบ
+
+                // 1. ลองหาจาก Document ID โดยตรงก่อน
+                let snap = await getDoc(doc(patientsRef, rawQuery));
+                if(snap.exists()) foundDoc = { ...snap.data(), docId: snap.id };
+                
+                // 2. ถ้าไม่เจอ ลองหาในฟิลด์ cid
+                if(!foundDoc) {
+                    const qsCid = await getDocs(query(patientsRef, where("cid", "==", rawQuery), limit(1)));
+                    if(!qsCid.empty) foundDoc = { ...qsCid.docs[0].data(), docId: qsCid.docs[0].id };
+                }
+
+                // 3. ถ้าไม่เจอ ลองหาในฟิลด์ hn (แบบตรงเป๊ะ)
+                if(!foundDoc) {
+                    const qsHn = await getDocs(query(patientsRef, where("hn", "==", rawQuery), limit(1)));
+                    if(!qsHn.empty) foundDoc = { ...qsHn.docs[0].data(), docId: qsHn.docs[0].id };
+                }
+
+                // 4. ถ้าไม่เจอ ลองหาในฟิลด์ hn (แบบตัด 0 ข้างหน้าออก)
+                if(!foundDoc && cleanQuery !== rawQuery) {
+                    const qsHnClean = await getDocs(query(patientsRef, where("hn", "==", cleanQuery), limit(1)));
+                    if(!qsHnClean.empty) foundDoc = { ...qsHnClean.docs[0].data(), docId: qsHnClean.docs[0].id };
                 }
 
                 if(foundDoc) {
@@ -625,23 +630,43 @@
             const existingQueue = queueData.find(q => q.cid === currentPatient.cid && new Date(q.timestamp).getFullYear() === currentYear);
             
             if (existingQueue) {
-                let sText = existingQueue.status === 'injected' ? 'ฉีดวัคซีนแล้ว' : (existingQueue.decision === 'decline' ? 'ไม่ยินยอม' : 'รอฉีด');
-                Swal.fire({ icon: 'info', title: 'ลงทะเบียนแล้ว', text: `ผู้รับบริการนี้ทำรายการของปี ${currentYear} ไปแล้ว รับริการฉีดได้ที่อาคาร OPD ชั้น 5 วันที่ 24,26,27,28 สิงหาคม 2569 เวลา 08.30 - 11.30 น. (สถานะ: ${sText}) พบปัญหาติดต่อ 3215`, showCancelButton: true, confirmButtonText: 'พิมพ์ใบยินยอม/สร้างรูปภาพซ้ำ', cancelButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#3b82f6' })
-                .then((res) => { 
-                    if(res.isConfirmed) {
-                        const dText = existingQueue.decision === 'consent' ? 'ยินยอมรับการฉีดวัคซีน' : 'ไม่ยินยอมรับการฉีดวัคซีน';
-                        if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                            document.getElementById('loadingOverlay').style.display = 'flex';
-                            document.getElementById('loadingText').innerText = 'กำลังสร้างรูปภาพ...';
-                            generateSlipImageMobile(existingQueue.name, existingQueue.cid, existingQueue.hn, existingQueue.vaccine, existingQueue.answers, dText, existingQueue.vitals?.weight, existingQueue.vitals?.height, existingQueue.vitals?.temp, existingQueue.vitals?.pr, existingQueue.vitals?.bp)
-                            .then(() => document.getElementById('loadingOverlay').style.display = 'none');
-                        } else {
-                            printSlipWindow(existingQueue.name, existingQueue.cid, existingQueue.hn, existingQueue.vaccine, existingQueue.answers, dText, existingQueue.vitals?.weight, existingQueue.vitals?.height, existingQueue.vitals?.temp, existingQueue.vitals?.pr, existingQueue.vitals?.bp);
+                // ถ้าคิวที่มีอยู่ มีสถานะเป็น 'waiting' หรือ 'injected' ก็แจ้งเตือนให้ปรินต์ซ้ำ หรือไปรอฉีดเลย ไม่บล็อกการทำงานแอดมิน
+                if(existingQueue.status === 'injected' || existingQueue.decision === 'decline') {
+                    let sText = existingQueue.status === 'injected' ? 'ฉีดวัคซีนแล้ว' : 'ไม่ยินยอม';
+                    Swal.fire({ icon: 'info', title: 'จบกระบวนการแล้ว', text: `ผู้รับบริการนี้ทำรายการของปี ${currentYear} จบไปแล้ว (สถานะ: ${sText}) รับบริการฉีดได้ที่อาคาร OPD ชั้น 5 วันที่ 24,26,27,28 สิงหาคม 2569 เวลา 08.30 - 11.30 น. พบปัญหาติดต่อ 3215`, showCancelButton: true, confirmButtonText: 'พิมพ์ใบยินยอม/สร้างรูปภาพซ้ำ', cancelButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#3b82f6' })
+                    .then((res) => { 
+                        if(res.isConfirmed) {
+                            const dText = existingQueue.decision === 'consent' ? 'ยินยอมรับการฉีดวัคซีน' : 'ไม่ยินยอมรับการฉีดวัคซีน';
+                            if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                                document.getElementById('loadingOverlay').style.display = 'flex';
+                                document.getElementById('loadingText').innerText = 'กำลังสร้างรูปภาพ...';
+                                generateSlipImageMobile(existingQueue.name, existingQueue.cid, existingQueue.hn, existingQueue.vaccine, existingQueue.answers, dText, existingQueue.vitals?.weight, existingQueue.vitals?.height, existingQueue.vitals?.temp, existingQueue.vitals?.pr, existingQueue.vitals?.bp)
+                                .then(() => document.getElementById('loadingOverlay').style.display = 'none');
+                            } else {
+                                printSlipWindow(existingQueue.name, existingQueue.cid, existingQueue.hn, existingQueue.vaccine, existingQueue.answers, dText, existingQueue.vitals?.weight, existingQueue.vitals?.height, existingQueue.vitals?.temp, existingQueue.vitals?.pr, existingQueue.vitals?.bp);
+                            }
                         }
-                    }
-                });
-                resetFormState();
-                return;
+                    });
+                    resetFormState();
+                    return;
+                } else if (existingQueue.status === 'waiting') {
+                    Swal.fire({ icon: 'info', title: 'ลงทะเบียนแล้ว', text: `ผู้รับบริการนี้ได้ลงทะเบียนคิวไว้แล้ว สามารถนำบาร์โค้ดไปยิงที่จุดสแกนตรวจสอบได้เลย`, showCancelButton: true, confirmButtonText: 'พิมพ์ใบยินยอม/สร้างรูปภาพซ้ำ', cancelButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#3b82f6' })
+                    .then((res) => { 
+                        if(res.isConfirmed) {
+                            const dText = existingQueue.decision === 'consent' ? 'ยินยอมรับการฉีดวัคซีน' : 'ไม่ยินยอมรับการฉีดวัคซีน';
+                            if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                                document.getElementById('loadingOverlay').style.display = 'flex';
+                                document.getElementById('loadingText').innerText = 'กำลังสร้างรูปภาพ...';
+                                generateSlipImageMobile(existingQueue.name, existingQueue.cid, existingQueue.hn, existingQueue.vaccine, existingQueue.answers, dText, existingQueue.vitals?.weight, existingQueue.vitals?.height, existingQueue.vitals?.temp, existingQueue.vitals?.pr, existingQueue.vitals?.bp)
+                                .then(() => document.getElementById('loadingOverlay').style.display = 'none');
+                            } else {
+                                printSlipWindow(existingQueue.name, existingQueue.cid, existingQueue.hn, existingQueue.vaccine, existingQueue.answers, dText, existingQueue.vitals?.weight, existingQueue.vitals?.height, existingQueue.vitals?.temp, existingQueue.vitals?.pr, existingQueue.vitals?.bp);
+                            }
+                        }
+                    });
+                    resetFormState();
+                    return;
+                }
             }
 
             let missing = [];
@@ -749,7 +774,9 @@
                 showCancelButton: true, confirmButtonText: 'บันทึก', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#3b82f6',
                 preConfirm: async () => {
                     const cid = document.getElementById('newCid').value.trim(), hn = document.getElementById('newHn').value.trim();
-                    const prefix = document.getElementById('newPrefix').value.trim(), fname = document.getElementById('newFname').value.trim(), lname = document.getElementById('newLname').value.trim();
+                    const prefix = document.getElementById('newPrefix').value.trim();
+                    let fname = document.getElementById('newFname').value.trim();
+                    const lname = document.getElementById('newLname').value.trim();
                     const phone = document.getElementById('newPhone').value.trim();
                     
                     if(!validateThaiId(cid)) { Swal.showValidationMessage('เลข 13 หลักไม่ถูกต้อง'); return false; }
@@ -757,9 +784,16 @@
                     if(!prefix || !fname || !lname) { Swal.showValidationMessage('กรอกคำนำหน้า ชื่อ นามสกุลให้ครบ'); return false; }
                     if(!phone || phone.length !== 4 || isNaN(phone)) { Swal.showValidationMessage('เบอร์โทรต้องเป็นเลข 4 หลัก'); return false; }
                     
-                    // Check if name exists in DB, if so auto verify, if not wait for admin
-                    const qs = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), where("fname", "==", fname), limit(10)));
-                    const matched = qs.docs.map(d=>d.data()).find(d => (d.lname || '').trim() === lname);
+                    // ปอกคำนำหน้าทิ้งกรณีเผลอพิมพ์ติดมา
+                    fname = fname.replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|น\.ส\.|พล\.ต\.ต\.|พ\.ต\.อ\.|พ\.ต\.ท\.|พ\.ต\.ต\.|ร\.ต\.อ\.|ร\.ต\.ท\.|ร\.ต\.ต\.|ด\.ต\.|จ\.ส\.ต\.|ส\.ต\.อ\.|ส\.ต\.ท\.|ส\.ต\.ต\.|ว่าที่ ร\.ต\.|พระ|สามเณร)\s*/i, '').trim();
+
+                    // ค้นหาเช็คชื่อซ้ำแบบยืดหยุ่น (ไม่สนใจสเปซบาร์)
+                    const qs = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), where("fname", "==", fname)));
+                    const inputLname = lname.replace(/\s+/g, '');
+                    const matched = qs.docs.map(d=>d.data()).find(d => {
+                        const dbLname = (d.lname || '').replace(/\s+/g, '');
+                        return dbLname === inputLname;
+                    });
                     const isVerified = matched ? true : false;
 
                     return { cid, hn, prefix, fname, lname, phone, isVerified };
@@ -794,15 +828,24 @@
             }
         }
 
-        window.autoFillPatientInfo = async function() {
-            const f = document.getElementById('newFname').value.trim();
+        async function autoFillPatientInfo() {
+            let f = document.getElementById('newFname').value.trim();
             const l = document.getElementById('newLname').value.trim();
             if(f && l) {
-                const qs = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), where("fname", "==", f), limit(5)));
-                const matched = qs.docs.map(d=>d.data()).find(d => (d.lname || '').trim() === l);
+                f = f.replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|น\.ส\.|พล\.ต\.ต\.|พ\.ต\.อ\.|พ\.ต\.ท\.|พ\.ต\.ต\.|ร\.ต\.อ\.|ร\.ต\.ท\.|ร\.ต\.ต\.|ด\.ต\.|จ\.ส\.ต\.|ส\.ต\.อ\.|ส\.ต\.ท\.|ส\.ต\.ต\.|ว่าที่ ร\.ต\.|พระ|สามเณร)\s*/i, '').trim();
+                const qs = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), where("fname", "==", f)));
+                const inputLname = l.replace(/\s+/g, '');
+                const matched = qs.docs.map(d=>d.data()).find(d => {
+                    const dbLname = (d.lname || '').replace(/\s+/g, '');
+                    return dbLname === inputLname;
+                });
                 if(matched) {
                     if(matched.prefix) document.getElementById('newPrefix').value = matched.prefix;
-                    if(matched.phone) { document.getElementById('newPhone').value = matched.phone; document.getElementById('newPhone').setAttribute('readonly', true); document.getElementById('newPhone').classList.add('bg-gray-100'); }
+                    if(matched.phone) { 
+                        document.getElementById('newPhone').value = matched.phone; 
+                        document.getElementById('newPhone').setAttribute('readonly', true); 
+                        document.getElementById('newPhone').classList.add('bg-gray-100'); 
+                    }
                 }
             }
         }
@@ -952,16 +995,32 @@
             document.getElementById('vitalWeight').value = ''; document.getElementById('vitalHeight').value = ''; document.getElementById('vitalTemp').value = ''; document.getElementById('vitalPr').value = ''; document.getElementById('vitalBp').value = '';
         }
 
-        function verifyBarcode() {
+        async function verifyBarcode() {
             const scanInput = document.getElementById('scanInput');
             const resultBox = document.getElementById('scanResult');
-            const barcode = scanInput.value.trim().replace(/^0+/, ''); 
+            const rawBarcode = scanInput.value.trim();
+            const cleanBarcode = rawBarcode.replace(/^0+/, ''); 
             
-            if(!barcode) return;
+            if(!rawBarcode) return;
             
             resultBox.innerHTML = '<div class="animate-pulse p-6 border-2 border-blue-200 bg-blue-50 rounded-2xl text-blue-600 font-medium text-sm w-full">กำลังตรวจสอบ...</div>';
             
-            const matchedQueue = queueData.find(q => q.cid === barcode || q.hn === barcode || q.id === barcode);
+            // เรียงลำดับคิวจากใหม่ไปเก่า ก่อนที่จะค้นหา เพื่อให้ได้คิวล่าสุดเสมอ (กรณีมีคิวซ้ำซ้อน)
+            const sortedQueue = [...queueData].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            const matchedQueue = sortedQueue.find(q => {
+                const c = String(q.cid || '').trim();
+                const h = String(q.hn || '').trim();
+                const i = String(q.id || '').trim();
+                
+                const cClean = c.replace(/^0+/, '');
+                const hClean = h.replace(/^0+/, '');
+                const iClean = i.replace(/^0+/, '');
+                
+                return c === rawBarcode || cClean === cleanBarcode ||
+                       h === rawBarcode || hClean === cleanBarcode ||
+                       i === rawBarcode || iClean === cleanBarcode;
+            });
             
             if (matchedQueue) {
                 if (matchedQueue.status === 'injected') {
@@ -971,7 +1030,7 @@
                         <div class="w-full p-5 border-2 border-blue-300 bg-blue-50 rounded-2xl pop-animation text-left shadow-sm">
                             <div class="flex items-center gap-2 mb-2 text-blue-700 font-bold text-xl"><span class="text-2xl">ℹ️</span> ฉีดวัคซีนไปแล้ว</div>
                             <div class="text-base text-gray-800 mb-1"><strong>${matchedQueue.name}</strong></div>
-                            <div class="text-sm text-gray-600">รหัสอ้างอิง: ${barcode}</div>
+                            <div class="text-sm text-gray-600">รหัสอ้างอิง: ${rawBarcode}</div>
                             <div class="text-sm text-gray-600">วัคซีน: <span class="font-bold">${matchedQueue.vaccine}</span></div>
                             <div class="mt-4 text-sm bg-white py-2 px-3 rounded-xl text-center text-blue-600 font-bold border border-blue-100">
                                 ทำรายการฉีดไปเมื่อเวลา ${timeStr} น.
@@ -984,7 +1043,7 @@
                         <div class="w-full p-5 border-2 border-red-300 bg-red-50 rounded-2xl pop-animation text-left shadow-sm">
                             <div class="flex items-center gap-2 mb-2 text-red-700 font-bold text-xl"><span class="text-2xl">❌</span> ปฏิเสธการรับวัคซีน</div>
                             <div class="text-base text-gray-800 mb-1"><strong>${matchedQueue.name}</strong></div>
-                            <div class="text-sm text-gray-600">รหัสอ้างอิง: ${barcode}</div>
+                            <div class="text-sm text-gray-600">รหัสอ้างอิง: ${rawBarcode}</div>
                             <div class="mt-4 text-sm bg-white py-2 px-3 rounded-xl text-center text-red-600 font-bold border border-red-100">
                                 ผู้รับบริการไม่ยินยอมรับวัคซีน
                             </div>
@@ -994,9 +1053,9 @@
                     // Ready to Inject -> Inject immediately!
                     try {
                         const nowTime = new Date().toISOString();
-                        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'queue', matchedQueue.id), {
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'queue', matchedQueue.id), {
                             status: 'injected',
-                            injectTime: nowTime
+                            injectTime: nowTime // Stamps the exact moment of scanning
                         });
                         
                         const timeStr = new Date(nowTime).toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'});
@@ -1004,7 +1063,7 @@
                             <div class="w-full p-5 border-2 border-green-400 bg-green-50 rounded-2xl pop-animation text-left shadow-sm">
                                 <div class="flex items-center gap-2 mb-2 text-green-700 font-bold text-xl"><span class="text-2xl">✅</span> บันทึกการฉีดสำเร็จ!</div>
                                 <div class="text-base text-gray-800 mb-1"><strong>${matchedQueue.name}</strong></div>
-                                <div class="text-sm text-gray-600">รหัสอ้างอิง: ${barcode}</div>
+                                <div class="text-sm text-gray-600">รหัสอ้างอิง: ${rawBarcode}</div>
                                 <div class="text-sm text-gray-600">วัคซีน: <span class="font-bold text-green-700">${matchedQueue.vaccine}</span></div>
                                 <div class="mt-4 text-sm bg-green-600 text-white py-2 px-3 rounded-xl text-center font-bold shadow-md">
                                     เวลา ${timeStr} น.
@@ -1020,7 +1079,7 @@
                 resultBox.innerHTML = `
                     <div class="w-full p-5 border-2 border-orange-300 bg-orange-50 rounded-2xl pop-animation text-left shadow-sm">
                         <div class="flex items-center gap-2 mb-2 text-orange-700 font-bold text-xl"><span class="text-2xl">⚠️</span> ไม่พบประวัติคิว</div>
-                        <div class="text-base text-gray-800 mb-2">บาร์โค้ด: <strong>${barcode}</strong></div>
+                        <div class="text-base text-gray-800 mb-2">บาร์โค้ด: <strong>${rawBarcode}</strong></div>
                         <div class="text-sm bg-white py-2 px-3 rounded-xl text-orange-600 font-medium border border-orange-200 leading-relaxed">
                             ยังไม่ได้ลงทะเบียน หรือทำรายการไม่สมบูรณ์ กรุณาให้ผู้รับบริการกลับไปติดต่อจุดลงทะเบียน
                         </div>
@@ -1037,21 +1096,16 @@
             if(!tbody) return;
             tbody.innerHTML = '';
             
-            // หาวันที่ปัจจุบัน (เวลา 00:00:00) เพื่อนำไปเปรียบเทียบ
             const today = new Date();
             const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
             
-            // กรองเอาเฉพาะคนที่ฉีดแล้ว และยิงบาร์โค้ด "ในวันนี้"
+            // กรองคิวที่สถานะ injected และเวลาฉีด (injectTime) เกิดขึ้นใน "วันนี้" เท่านั้น
             const injectedQueue = queueData.filter(q => {
                 if (q.status !== 'injected') return false;
-                
-                // ใช้ injectTime เป็นหลัก ถ้าข้อมูลเก่าไม่มีให้ fallback กลับไปใช้ timestamp
                 const timeToCompare = q.injectTime ? new Date(q.injectTime).getTime() : new Date(q.timestamp).getTime();
-                
                 return timeToCompare >= startOfToday;
             });
             
-            // เรียงลำดับเอาคนที่เพิ่งยิงล่าสุดไว้บนสุด
             injectedQueue.sort((a, b) => new Date(b.injectTime || b.timestamp) - new Date(a.injectTime || a.timestamp)); 
 
             const countBadge = document.getElementById('injectedCountBadge');
@@ -1390,14 +1444,17 @@
                 const pref = collection(db, 'artifacts', appId, 'public', 'data', 'patients');
                 let foundDocs = new Map();
                 
+                // ปอกคำนำหน้าทิ้งก่อนไปค้นหา
+                let cleanQuery = rawQuery.replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|น\.ส\.|พล\.ต\.ต\.|พ\.ต\.อ\.|พ\.ต\.ท\.|พ\.ต\.ต\.|ร\.ต\.อ\.|ร\.ต\.ท\.|ร\.ต\.ต\.|ด\.ต\.|จ\.ส\.ต\.|ส\.ต\.อ\.|ส\.ต\.ท\.|ส\.ต\.ต\.|ว่าที่ ร\.ต\.|พระ|สามเณร)\s*/i, '').trim();
+
                 if(!isNaN(rawQuery) && rawQuery.length === 13) {
                     const snap = await getDoc(doc(pref, rawQuery)); if(snap.exists()) foundDocs.set(snap.id, snap.data());
                     const qs = await getDocs(query(pref, where("cid", "==", rawQuery), limit(5))); qs.forEach(d => foundDocs.set(d.id, d.data()));
                 } else if(!isNaN(rawQuery)) {
                     const qs = await getDocs(query(pref, where("hn", "==", rawQuery), limit(10))); qs.forEach(d => foundDocs.set(d.id, d.data()));
                 } else {
-                    const qs1 = await getDocs(query(pref, where("fname", ">=", rawQuery), where("fname", "<=", rawQuery + "\uf8ff"), limit(10))); qs1.forEach(d => foundDocs.set(d.id, d.data()));
-                    const qs2 = await getDocs(query(pref, where("lname", ">=", rawQuery), where("lname", "<=", rawQuery + "\uf8ff"), limit(10))); qs2.forEach(d => foundDocs.set(d.id, d.data()));
+                    const qs1 = await getDocs(query(pref, where("fname", ">=", cleanQuery), where("fname", "<=", cleanQuery + "\uf8ff"), limit(10))); qs1.forEach(d => foundDocs.set(d.id, d.data()));
+                    const qs2 = await getDocs(query(pref, where("lname", ">=", cleanQuery), where("lname", "<=", cleanQuery + "\uf8ff"), limit(10))); qs2.forEach(d => foundDocs.set(d.id, d.data()));
                 }
 
                 container.innerHTML = '';
