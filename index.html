@@ -555,8 +555,11 @@
         }
 
         async function searchPatient() {
-            const rawQuery = document.getElementById('searchQuery').value.trim();
+            let rawQuery = document.getElementById('searchQuery').value.trim();
             if(!rawQuery) return Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: 'กรุณากรอกเลข 13 หลัก หรือ รหัส HN', confirmButtonColor: '#3b82f6' });
+
+            // ปอกคำนำหน้าทิ้งก่อนไปค้นหา เผื่อผู้ใช้งานกรอกคำนำหน้ามาด้วยในช่องค้นหา HN/CID (กรณี Copy/Paste)
+            rawQuery = rawQuery.replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|น\.ส\.|พล\.ต\.ต\.|พ\.ต\.อ\.|พ\.ต\.ท\.|พ\.ต\.ต\.|ร\.ต\.อ\.|ร\.ต\.ท\.|ร\.ต\.ต\.|ด\.ต\.|จ\.ส\.ต\.|ส\.ต\.อ\.|ส\.ต\.ท\.|ส\.ต\.ต\.|ว่าที่ ร\.ต\.|พระ|สามเณร)\s*/i, '').trim();
 
             document.getElementById('loadingText').innerText = 'กำลังค้นหาจากระบบ...';
             document.getElementById('loadingOverlay').style.display = 'flex';
@@ -566,24 +569,25 @@
                 const patientsRef = collection(db, 'artifacts', appId, 'public', 'data', 'patients');
                 let foundDoc = null;
 
-                const cleanQuery = rawQuery.replace(/^0+/, ''); 
-
-                let snap = await getDoc(doc(patientsRef, rawQuery));
-                if(snap.exists()) foundDoc = { ...snap.data(), docId: snap.id };
-                
-                if(!foundDoc) {
-                    const qsCid = await getDocs(query(patientsRef, where("cid", "==", rawQuery), limit(1)));
-                    if(!qsCid.empty) foundDoc = { ...qsCid.docs[0].data(), docId: qsCid.docs[0].id };
-                }
-
-                if(!foundDoc) {
-                    const qsHn = await getDocs(query(patientsRef, where("hn", "==", rawQuery), limit(1)));
-                    if(!qsHn.empty) foundDoc = { ...qsHn.docs[0].data(), docId: qsHn.docs[0].id };
-                }
-
-                if(!foundDoc && cleanQuery !== rawQuery) {
-                    const qsHnClean = await getDocs(query(patientsRef, where("hn", "==", cleanQuery), limit(1)));
-                    if(!qsHnClean.empty) foundDoc = { ...qsHnClean.docs[0].data(), docId: qsHnClean.docs[0].id };
+                if (rawQuery.length === 13 && !isNaN(rawQuery)) {
+                    let snap = await getDoc(doc(patientsRef, rawQuery));
+                    if(snap.exists()) foundDoc = { ...snap.data(), docId: snap.id };
+                    else {
+                        const qs = await getDocs(query(patientsRef, where("cid", "==", rawQuery), limit(1)));
+                        if(!qs.empty) foundDoc = { ...qs.docs[0].data(), docId: qs.docs[0].id };
+                    }
+                } else {
+                    const cleanHn = rawQuery.replace(/^0+/, '');
+                    let snap1 = await getDoc(doc(patientsRef, rawQuery));
+                    if(snap1.exists()) foundDoc = { ...snap1.data(), docId: snap1.id };
+                    else {
+                        const qs1 = await getDocs(query(patientsRef, where("hn", "==", rawQuery), limit(1)));
+                        if(!qs1.empty) foundDoc = { ...qs1.docs[0].data(), docId: qs1.docs[0].id };
+                        else if(cleanHn !== rawQuery) {
+                            const qs2 = await getDocs(query(patientsRef, where("hn", "==", cleanHn), limit(1)));
+                            if(!qs2.empty) foundDoc = { ...qs2.docs[0].data(), docId: qs2.docs[0].id };
+                        }
+                    }
                 }
 
                 if(foundDoc) {
@@ -633,42 +637,23 @@
             const existingQueue = queueData.find(q => q.cid === currentPatient.cid && new Date(q.timestamp).getFullYear() === currentYear);
             
             if (existingQueue) {
-                if(existingQueue.status === 'injected' || existingQueue.decision === 'decline') {
-                    let sText = existingQueue.status === 'injected' ? 'ฉีดวัคซีนแล้ว' : 'ไม่ยินยอม';
-                    Swal.fire({ icon: 'info', title: 'จบกระบวนการแล้ว', text: `ผู้รับบริการนี้ทำรายการของปี ${currentYear} จบไปแล้ว (สถานะ: ${sText}) รับบริการฉีดได้ที่อาคาร OPD ชั้น 5 วันที่ 24,26,27,28 สิงหาคม 2569 เวลา 08.30 - 11.30 น. พบปัญหาติดต่อ 3215`, showCancelButton: true, confirmButtonText: 'พิมพ์ใบยินยอม/สร้างรูปภาพซ้ำ', cancelButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#3b82f6' })
-                    .then((res) => { 
-                        if(res.isConfirmed) {
-                            const dText = existingQueue.decision === 'consent' ? 'ยินยอมรับการฉีดวัคซีน' : 'ไม่ยินยอมรับการฉีดวัคซีน';
-                            if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                                document.getElementById('loadingOverlay').style.display = 'flex';
-                                document.getElementById('loadingText').innerText = 'กำลังสร้างรูปภาพ...';
-                                generateSlipImageMobile(existingQueue.name, existingQueue.cid, existingQueue.hn, existingQueue.vaccine, existingQueue.answers, dText, existingQueue.vitals?.weight, existingQueue.vitals?.height, existingQueue.vitals?.temp, existingQueue.vitals?.pr, existingQueue.vitals?.bp)
-                                .then(() => document.getElementById('loadingOverlay').style.display = 'none');
-                            } else {
-                                printSlipWindow(existingQueue.name, existingQueue.cid, existingQueue.hn, existingQueue.vaccine, existingQueue.answers, dText, existingQueue.vitals?.weight, existingQueue.vitals?.height, existingQueue.vitals?.temp, existingQueue.vitals?.pr, existingQueue.vitals?.bp);
-                            }
+                let sText = existingQueue.status === 'injected' ? 'ฉีดวัคซีนแล้ว' : (existingQueue.decision === 'decline' ? 'ไม่ยินยอม' : 'รอฉีด');
+                Swal.fire({ icon: 'info', title: 'ลงทะเบียนแล้ว', text: `ผู้รับบริการนี้ทำรายการของปี ${currentYear} ไปแล้ว รับริการฉีดได้ที่อาคาร OPD ชั้น 5 วันที่ 24,26,27,28 สิงหาคม 2569 เวลา 08.30 - 11.30 น. (สถานะ: ${sText}) พบปัญหาติดต่อ 3215`, showCancelButton: true, confirmButtonText: 'พิมพ์ใบยินยอม/สร้างรูปภาพซ้ำ', cancelButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#3b82f6' })
+                .then((res) => { 
+                    if(res.isConfirmed) {
+                        const dText = existingQueue.decision === 'consent' ? 'ยินยอมรับการฉีดวัคซีน' : 'ไม่ยินยอมรับการฉีดวัคซีน';
+                        if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                            document.getElementById('loadingOverlay').style.display = 'flex';
+                            document.getElementById('loadingText').innerText = 'กำลังสร้างรูปภาพ...';
+                            generateSlipImageMobile(existingQueue.name, existingQueue.cid, existingQueue.hn, existingQueue.vaccine, existingQueue.answers, dText, existingQueue.vitals?.weight, existingQueue.vitals?.height, existingQueue.vitals?.temp, existingQueue.vitals?.pr, existingQueue.vitals?.bp)
+                            .then(() => document.getElementById('loadingOverlay').style.display = 'none');
+                        } else {
+                            printSlipWindow(existingQueue.name, existingQueue.cid, existingQueue.hn, existingQueue.vaccine, existingQueue.answers, dText, existingQueue.vitals?.weight, existingQueue.vitals?.height, existingQueue.vitals?.temp, existingQueue.vitals?.pr, existingQueue.vitals?.bp);
                         }
-                    });
-                    resetFormState();
-                    return;
-                } else if (existingQueue.status === 'waiting') {
-                    Swal.fire({ icon: 'info', title: 'ลงทะเบียนแล้ว', text: `ผู้รับบริการนี้ได้ลงทะเบียนคิวไว้แล้ว สามารถนำบาร์โค้ดไปยิงที่จุดสแกนตรวจสอบได้เลย`, showCancelButton: true, confirmButtonText: 'พิมพ์ใบยินยอม/สร้างรูปภาพซ้ำ', cancelButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#3b82f6' })
-                    .then((res) => { 
-                        if(res.isConfirmed) {
-                            const dText = existingQueue.decision === 'consent' ? 'ยินยอมรับการฉีดวัคซีน' : 'ไม่ยินยอมรับการฉีดวัคซีน';
-                            if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                                document.getElementById('loadingOverlay').style.display = 'flex';
-                                document.getElementById('loadingText').innerText = 'กำลังสร้างรูปภาพ...';
-                                generateSlipImageMobile(existingQueue.name, existingQueue.cid, existingQueue.hn, existingQueue.vaccine, existingQueue.answers, dText, existingQueue.vitals?.weight, existingQueue.vitals?.height, existingQueue.vitals?.temp, existingQueue.vitals?.pr, existingQueue.vitals?.bp)
-                                .then(() => document.getElementById('loadingOverlay').style.display = 'none');
-                            } else {
-                                printSlipWindow(existingQueue.name, existingQueue.cid, existingQueue.hn, existingQueue.vaccine, existingQueue.answers, dText, existingQueue.vitals?.weight, existingQueue.vitals?.height, existingQueue.vitals?.temp, existingQueue.vitals?.pr, existingQueue.vitals?.bp);
-                            }
-                        }
-                    });
-                    resetFormState();
-                    return;
-                }
+                    }
+                });
+                resetFormState();
+                return;
             }
 
             let missing = [];
@@ -789,13 +774,14 @@
                     // ปอกคำนำหน้าทิ้งกรณีเผลอพิมพ์ติดมา
                     fname = fname.replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|น\.ส\.|พล\.ต\.ต\.|พ\.ต\.อ\.|พ\.ต\.ท\.|พ\.ต\.ต\.|ร\.ต\.อ\.|ร\.ต\.ท\.|ร\.ต\.ต\.|ด\.ต\.|จ\.ส\.ต\.|ส\.ต\.อ\.|ส\.ต\.ท\.|ส\.ต\.ต\.|ว่าที่ ร\.ต\.|พระ|สามเณร)\s*/i, '').trim();
 
-                    // ค้นหาเช็คชื่อซ้ำแบบยืดหยุ่น (ไม่สนใจสเปซบาร์)
+                    // เช็คว่ามีชื่อนี้ในฐานข้อมูลหรือยัง (ค้นหาทั้งหมด ตัดสเปซบาร์ทิ้ง)
+                    const cleanLname = lname.replace(/\s+/g, '');
                     const qs = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), where("fname", "==", fname)));
-                    const inputLname = lname.replace(/\s+/g, '');
                     const matched = qs.docs.map(d=>d.data()).find(d => {
                         const dbLname = (d.lname || '').replace(/\s+/g, '');
-                        return dbLname === inputLname;
+                        return dbLname === cleanLname;
                     });
+                    
                     const isVerified = matched ? true : false;
 
                     return { cid, hn, prefix, fname, lname, phone, isVerified };
@@ -835,12 +821,14 @@
             const l = document.getElementById('newLname').value.trim();
             if(f && l) {
                 f = f.replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|น\.ส\.|พล\.ต\.ต\.|พ\.ต\.อ\.|พ\.ต\.ท\.|พ\.ต\.ต\.|ร\.ต\.อ\.|ร\.ต\.ท\.|ร\.ต\.ต\.|ด\.ต\.|จ\.ส\.ต\.|ส\.ต\.อ\.|ส\.ต\.ท\.|ส\.ต\.ต\.|ว่าที่ ร\.ต\.|พระ|สามเณร)\s*/i, '').trim();
+                const cleanLname = l.replace(/\s+/g, '');
+                
                 const qs = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), where("fname", "==", f)));
-                const inputLname = l.replace(/\s+/g, '');
                 const matched = qs.docs.map(d=>d.data()).find(d => {
                     const dbLname = (d.lname || '').replace(/\s+/g, '');
-                    return dbLname === inputLname;
+                    return dbLname === cleanLname;
                 });
+                
                 if(matched) {
                     if(matched.prefix) document.getElementById('newPrefix').value = matched.prefix;
                     if(matched.phone) { 
@@ -974,17 +962,33 @@
             let qHtml = '';
             if(displayQuestions) displayQuestions.forEach(item => { qHtml += `<div style="margin-bottom:6px; font-size:10.5pt; color:#111; font-weight:500;"><div style="margin-bottom:2px; line-height:1.2;">${item.q}</div><div style="display:flex; gap:30px; margin-left:10px;"><div style="display:flex; align-items:center;"><div style="display:flex; justify-content:center; align-items:center; width:12px; height:12px; border:1px solid #000; margin-right:6px; font-weight:bold; font-size:10px;">${item.a==='มี/ใช่'?'✓':''}</div><span>มี/ใช่</span></div><div style="display:flex; align-items:center;"><div style="display:flex; justify-content:center; align-items:center; width:12px; height:12px; border:1px solid #000; margin-right:6px; font-weight:bold; font-size:10px;">${item.a==='ไม่มี/ไม่ใช่'?'✓':''}</div><span>ไม่มี/ไม่ใช่</span></div></div></div>`; });
             const timeStr = `${new Date().toLocaleDateString('th-TH')} ${new Date().getHours().toString().padStart(2,'0')}:${new Date().getMinutes().toString().padStart(2,'0')}`;
-            const printWindow = window.open('', '_blank', 'width=600,height=800');
+            const printWindow = window.open('', '_blank', 'width=800,height=900');
             printWindow.document.write(`
                 <!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>พิมพ์ใบยินยอม</title><link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;700&display=swap" rel="stylesheet"><script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"><\/script>
-                <style>@page{size: A5 portrait; margin:0;} *{box-sizing:border-box;} body{font-family:'Prompt',sans-serif; margin:0; padding:10mm; background:#fff; color:#111; width:148mm; height:210mm; display:flex; flex-direction:column; justify-content:space-between; overflow:hidden;} </style></head>
-                <body><div style="width:100%;">
-                    <div style="text-align:center; border-bottom:2px solid #374151; padding-bottom:4px; margin-bottom:10px;"><h2 style="font-size:16pt; font-weight:bold; margin:0;">โรงพยาบาลศรีสะเกษ</h2><h3 style="font-size:12pt; font-weight:bold; margin:0;">หลักฐานการแสดงความยินยอม</h3><p style="font-size:10pt; color:#4b5563; margin:0;">การรับบริการฉีดวัคซีนป้องกันโรคติดต่อ</p></div>
-                    <div style="font-size:11pt; margin-bottom:10px; line-height:1.5;"><div style="display:flex; justify-content:space-between;"><div><b>ชื่อ-สกุล:</b> ${name}</div><div><b>รหัส HN:</b> ${hn||'-'}</div></div><div><b>วัคซีนที่รับ:</b> ${vaccineName}</div><div style="margin-top:4px;"><b>สัญญาณชีพ:</b> นน. &nbsp;${w||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}&nbsp; กก. &nbsp;|&nbsp; สส. &nbsp;${h||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}&nbsp; ซม. &nbsp;|&nbsp; อุณหภูมิ &nbsp;${t||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}&nbsp; °C</div><div style="margin-top:4px;"><b>ชีพจร:</b> &nbsp;${pr||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}&nbsp; ครั้ง/นาที &nbsp;|&nbsp; <b>ความดันโลหิต:</b> &nbsp;${bp||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}&nbsp; mmHg</div></div>
-                    <div style="margin-bottom:8px;"><div style="font-size:12pt; font-weight:bold; margin-bottom:6px; border-bottom:1px dashed #ccc; padding-bottom:2px;">ผลการคัดกรองเบื้องต้น:</div>${qHtml}</div>
-                    <div style="border:2px solid #374151; border-radius:8px; padding:6px; text-align:center; background:#f9fafb;"><div style="font-size:14pt; font-weight:bold; ${dText.includes('ไม่ยินยอม')?'color:#dc2626;':'color:#1d4ed8;'}">${dText}</div></div>
-                </div><div style="text-align:center; width:100%;"><div style="font-size:11pt; margin-bottom:4px; line-height:1.3;"><div>ลงชื่อ ........................................................................ ผู้รับบริการ</div><div>( ${name} )</div><div style="font-size:9pt; color:#6b7280;">พิมพ์เมื่อ: ${timeStr}</div></div><div style="display:flex; justify-content:center;"><svg id="slipBarcode"></svg></div></div>
-                <script>window.onload=function(){JsBarcode("#slipBarcode","${barcodeData}",{format:"CODE128",width:1.5,height:35,displayValue:true,fontSize:10,margin:0}); setTimeout(function(){window.print(); window.close();},300);};<\/script></body></html>
+                <style>
+                    * { box-sizing: border-box; }
+                    body { font-family: 'Prompt', sans-serif; margin: 0; padding: 0; background: #fff; color: #111; }
+                    .print-container { padding: 5%; width: 100%; max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; justify-content: space-between; min-height: 90vh; }
+                    @media print { 
+                        @page { size: auto; margin: 5mm; } 
+                        body { width: 100%; } 
+                        .print-container { width: 100%; max-width: 100%; padding: 2mm; height: 95vh; min-height: unset; margin: 0; border: none; box-shadow: none; } 
+                    }
+                </style></head>
+                <body>
+                    <div class="print-container">
+                        <div style="width:100%;">
+                            <div style="text-align:center; border-bottom:2px solid #374151; padding-bottom:4px; margin-bottom:15px;"><h2 style="font-size:18pt; font-weight:bold; margin:0;">โรงพยาบาลศรีสะเกษ</h2><h3 style="font-size:14pt; font-weight:bold; margin:0;">หลักฐานการแสดงความยินยอม</h3><p style="font-size:11pt; color:#4b5563; margin:0;">การรับบริการฉีดวัคซีนป้องกันโรคติดต่อ</p></div>
+                            <div style="font-size:12pt; margin-bottom:15px; line-height:1.6;"><div style="display:flex; justify-content:space-between;"><div><b>ชื่อ-สกุล:</b> ${name}</div><div><b>รหัส HN:</b> ${hn||'-'}</div></div><div><b>วัคซีนที่รับ:</b> ${vaccineName}</div><div style="margin-top:6px;"><b>สัญญาณชีพ:</b> นน. &nbsp;${w||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}&nbsp; กก. &nbsp;|&nbsp; สส. &nbsp;${h||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}&nbsp; ซม. &nbsp;|&nbsp; อุณหภูมิ &nbsp;${t||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}&nbsp; °C</div><div style="margin-top:6px;"><b>ชีพจร:</b> &nbsp;${pr||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}&nbsp; ครั้ง/นาที &nbsp;|&nbsp; <b>ความดันโลหิต:</b> &nbsp;${bp||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}&nbsp; mmHg</div></div>
+                            <div style="margin-bottom:15px;"><div style="font-size:13pt; font-weight:bold; margin-bottom:8px; border-bottom:1px dashed #ccc; padding-bottom:4px;">ผลการคัดกรองเบื้องต้น:</div>${qHtml}</div>
+                            <div style="border:2px solid #374151; border-radius:8px; padding:10px; text-align:center; background:#f9fafb;"><div style="font-size:16pt; font-weight:bold; ${dText.includes('ไม่ยินยอม')?'color:#dc2626;':'color:#1d4ed8;'}">${dText}</div></div>
+                        </div>
+                        <div style="text-align:center; width:100%; margin-top:20px;">
+                            <div style="font-size:12pt; margin-bottom:8px; line-height:1.4;"><div>ลงชื่อ ........................................................................ ผู้รับบริการ</div><div>( ${name} )</div><div style="font-size:10pt; color:#6b7280; margin-top:4px;">พิมพ์เมื่อ: ${timeStr}</div></div>
+                            <div style="display:flex; justify-content:center;"><svg id="slipBarcode"></svg></div>
+                        </div>
+                    </div>
+                <script>window.onload=function(){JsBarcode("#slipBarcode","${barcodeData}",{format:"CODE128",width:1.8,height:45,displayValue:true,fontSize:12,margin:0}); setTimeout(function(){window.print(); window.close();},300);};<\/script></body></html>
             `);
             printWindow.document.close();
         }
@@ -1278,7 +1282,6 @@
             });
         }
 
-        // ฟังก์ชันรับค่าการพิมพ์ค้นหา
         function searchAdminQueue() {
             queueSearchQuery = document.getElementById('queueSearchInput').value.trim().toLowerCase();
             adminQueueCurrentPage = 1; // เวลามีการค้นหา ให้กลับไปหน้า 1 เสมอ
@@ -1465,26 +1468,27 @@
         }
 
         async function adminSearchPatientDb() {
-            const rawQuery = document.getElementById('adminSearchInput').value.trim();
+            let rawQuery = document.getElementById('adminSearchInput').value.trim();
             const container = document.getElementById('adminPatientResults');
             if(!rawQuery) return container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">พิมพ์ข้อมูลแล้วค้นหา</p>';
+            
+            // ปอกคำนำหน้าทิ้งก่อนไปค้นหา
+            rawQuery = rawQuery.replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|น\.ส\.|พล\.ต\.ต\.|พ\.ต\.อ\.|พ\.ต\.ท\.|พ\.ต\.ต\.|ร\.ต\.อ\.|ร\.ต\.ท\.|ร\.ต\.ต\.|ด\.ต\.|จ\.ส\.ต\.|ส\.ต\.อ\.|ส\.ต\.ท\.|ส\.ต\.ต\.|ว่าที่ ร\.ต\.|พระ|สามเณร)\s*/i, '').trim();
+
             container.innerHTML = '<p class="text-sm text-blue-500 text-center py-4">กำลังค้นหา...</p>';
             
             try {
                 const pref = collection(db, 'artifacts', appId, 'public', 'data', 'patients');
                 let foundDocs = new Map();
                 
-                // ปอกคำนำหน้าทิ้งก่อนไปค้นหา
-                let cleanQuery = rawQuery.replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|น\.ส\.|พล\.ต\.ต\.|พ\.ต\.อ\.|พ\.ต\.ท\.|พ\.ต\.ต\.|ร\.ต\.อ\.|ร\.ต\.ท\.|ร\.ต\.ต\.|ด\.ต\.|จ\.ส\.ต\.|ส\.ต\.อ\.|ส\.ต\.ท\.|ส\.ต\.ต\.|ว่าที่ ร\.ต\.|พระ|สามเณร)\s*/i, '').trim();
-
                 if(!isNaN(rawQuery) && rawQuery.length === 13) {
                     const snap = await getDoc(doc(pref, rawQuery)); if(snap.exists()) foundDocs.set(snap.id, snap.data());
                     const qs = await getDocs(query(pref, where("cid", "==", rawQuery), limit(5))); qs.forEach(d => foundDocs.set(d.id, d.data()));
                 } else if(!isNaN(rawQuery)) {
                     const qs = await getDocs(query(pref, where("hn", "==", rawQuery), limit(10))); qs.forEach(d => foundDocs.set(d.id, d.data()));
                 } else {
-                    const qs1 = await getDocs(query(pref, where("fname", ">=", cleanQuery), where("fname", "<=", cleanQuery + "\uf8ff"), limit(10))); qs1.forEach(d => foundDocs.set(d.id, d.data()));
-                    const qs2 = await getDocs(query(pref, where("lname", ">=", cleanQuery), where("lname", "<=", cleanQuery + "\uf8ff"), limit(10))); qs2.forEach(d => foundDocs.set(d.id, d.data()));
+                    const qs1 = await getDocs(query(pref, where("fname", ">=", rawQuery), where("fname", "<=", rawQuery + "\uf8ff"), limit(10))); qs1.forEach(d => foundDocs.set(d.id, d.data()));
+                    const qs2 = await getDocs(query(pref, where("lname", ">=", rawQuery), where("lname", "<=", rawQuery + "\uf8ff"), limit(10))); qs2.forEach(d => foundDocs.set(d.id, d.data()));
                 }
 
                 container.innerHTML = '';
@@ -1638,23 +1642,36 @@
                         const bCode = barcodeSetting === 'CID' ? (p.cid||'-') : (p.hn||'-');
                         const fullName = `${p.prefix||''}${p.fname||''} ${p.lname||''}`.trim();
                         let qHtml = ''; vac.questions.forEach(q => { qHtml += `<div style="margin-bottom:6px; font-size:10.5pt; font-weight:500;"><div style="line-height:1.2;">${q}</div><div style="display:flex; gap:30px; margin-left:10px; margin-top:2px;"><div style="display:flex; align-items:center;"><div style="width:12px; height:12px; border:1px solid #000; margin-right:6px;"></div><span>มี/ใช่</span></div><div style="display:flex; align-items:center;"><div style="display:flex; justify-content:center; align-items:center; width:12px; height:12px; border:1px solid #000; margin-right:6px; font-weight:bold; font-size:10px;">✓</div><span>ไม่มี/ไม่ใช่</span></div></div></div>`; });
-                        const pageBreak = idx < validData.length - 1 ? 'page-break-after: always;' : '';
                         
                         pagesHtml += `
-                        <div class="print-page" style="width:148mm; height:210mm; padding:10mm; box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; ${pageBreak}">
-                            <div>
-                                <div style="text-align:center; border-bottom:2px solid #374151; padding-bottom:4px; margin-bottom:10px;"><h2 style="font-size:16pt; font-weight:bold; margin:0;">โรงพยาบาลศรีสะเกษ</h2><h3 style="font-size:12pt; font-weight:bold; margin:0;">หลักฐานการแสดงความยินยอม</h3><p style="font-size:10pt; color:#4b5563; margin:0;">การรับบริการฉีดวัคซีนป้องกันโรคติดต่อ</p></div>
-                                <div style="font-size:11pt; margin-bottom:10px; line-height:1.5;"><div style="display:flex; justify-content:space-between;"><div><b>ชื่อ-สกุล:</b> ${fullName}</div><div><b>รหัส HN:</b> ${p.hn||'-'}</div></div><div><b>วัคซีนที่รับ:</b> ${vacName}</div><div style="margin-top:4px;"><b>สัญญาณชีพ:</b> นน. <span style="border-bottom:1px dashed #000; padding:0 10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> กก. &nbsp;|&nbsp; สส. <span style="border-bottom:1px dashed #000; padding:0 10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> ซม. &nbsp;|&nbsp; อุณหภูมิ <span style="border-bottom:1px dashed #000; padding:0 10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> °C</div><div style="margin-top:4px;"><b>ชีพจร:</b> <span style="border-bottom:1px dashed #000; padding:0 10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> ครั้ง/นาที &nbsp;|&nbsp; <b>ความดันโลหิต:</b> <span style="border-bottom:1px dashed #000; padding:0 20px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> mmHg</div></div>
-                                <div style="margin-bottom:8px;"><div style="font-size:12pt; font-weight:bold; margin-bottom:6px; border-bottom:1px dashed #ccc; padding-bottom:2px;">ผลการคัดกรองเบื้องต้น:</div>${qHtml}</div>
-                                <div style="border:2px solid #374151; border-radius:8px; padding:6px; text-align:center; background:#f9fafb;"><div style="font-size:14pt; font-weight:bold; color:#1d4ed8;">ยินยอมรับการฉีดวัคซีน</div></div>
+                        <div class="print-page">
+                            <div style="width:100%;">
+                                <div style="text-align:center; border-bottom:2px solid #374151; padding-bottom:4px; margin-bottom:15px;"><h2 style="font-size:18pt; font-weight:bold; margin:0;">โรงพยาบาลศรีสะเกษ</h2><h3 style="font-size:14pt; font-weight:bold; margin:0;">หลักฐานการแสดงความยินยอม</h3><p style="font-size:11pt; color:#4b5563; margin:0;">การรับบริการฉีดวัคซีนป้องกันโรคติดต่อ</p></div>
+                                <div style="font-size:12pt; margin-bottom:15px; line-height:1.6;"><div style="display:flex; justify-content:space-between;"><div><b>ชื่อ-สกุล:</b> ${fullName}</div><div><b>รหัส HN:</b> ${p.hn||'-'}</div></div><div><b>วัคซีนที่รับ:</b> ${vacName}</div><div style="margin-top:6px;"><b>สัญญาณชีพ:</b> นน. <span style="border-bottom:1px dashed #000; padding:0 10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> กก. &nbsp;|&nbsp; สส. <span style="border-bottom:1px dashed #000; padding:0 10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> ซม. &nbsp;|&nbsp; อุณหภูมิ <span style="border-bottom:1px dashed #000; padding:0 10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> °C</div><div style="margin-top:6px;"><b>ชีพจร:</b> <span style="border-bottom:1px dashed #000; padding:0 10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> ครั้ง/นาที &nbsp;|&nbsp; <b>ความดันโลหิต:</b> <span style="border-bottom:1px dashed #000; padding:0 20px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> mmHg</div></div>
+                                <div style="margin-bottom:15px;"><div style="font-size:13pt; font-weight:bold; margin-bottom:8px; border-bottom:1px dashed #ccc; padding-bottom:4px;">ผลการคัดกรองเบื้องต้น:</div>${qHtml}</div>
+                                <div style="border:2px solid #374151; border-radius:8px; padding:10px; text-align:center; background:#f9fafb;"><div style="font-size:16pt; font-weight:bold; color:#1d4ed8;">ยินยอมรับการฉีดวัคซีน</div></div>
                             </div>
-                            <div style="text-align:center;"><div style="font-size:11pt; margin-bottom:4px; line-height:1.3;"><div>ลงชื่อ ........................................................................ ผู้รับบริการ</div><div>( ${fullName} )</div></div><div style="display:flex; justify-content:center;"><svg id="barcode_${idx}"></svg></div></div>
+                            <div style="text-align:center; width:100%; margin-top:20px;">
+                                <div style="font-size:12pt; margin-bottom:8px; line-height:1.4;"><div>ลงชื่อ ........................................................................ ผู้รับบริการ</div><div>( ${fullName} )</div></div>
+                                <div style="display:flex; justify-content:center;"><svg id="barcode_${idx}"></svg></div>
+                            </div>
                         </div>`;
                     });
 
                     const pWin = window.open('', '_blank');
-                    pWin.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>Batch Print</title><link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;700&display=swap" rel="stylesheet"><script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"><\/script><style>@page{size: A5 portrait; margin:0;} body{font-family:'Prompt',sans-serif; margin:0; background:#fff; color:#111;}</style></head><body>${pagesHtml}
-                    <script>window.onload=function(){ ${validData.map((p,i) => `JsBarcode("#barcode_${i}", "${barcodeSetting==='CID'?p.cid:p.hn}", {format:"CODE128",width:1.5,height:35,displayValue:true,fontSize:10,margin:0});`).join('\n')} setTimeout(function(){window.print(); window.close();}, 800); };<\/script></body></html>`);
+                    pWin.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>Batch Print</title><link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;700&display=swap" rel="stylesheet"><script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"><\/script>
+                    <style>
+                        * { box-sizing: border-box; }
+                        body { font-family: 'Prompt', sans-serif; margin: 0; padding: 0; background: #fff; color: #111; }
+                        .print-page { padding: 5%; width: 100%; max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; justify-content: space-between; min-height: 90vh; page-break-after: always; }
+                        .print-page:last-child { page-break-after: auto; }
+                        @media print { 
+                            @page { size: auto; margin: 5mm; } 
+                            body { width: 100%; } 
+                            .print-page { width: 100%; max-width: 100%; padding: 2mm; height: 95vh; min-height: unset; margin: 0; border: none; box-shadow: none; } 
+                        }
+                    </style></head><body>${pagesHtml}
+                    <script>window.onload=function(){ ${validData.map((p,i) => `JsBarcode("#barcode_${i}", "${barcodeSetting==='CID'?p.cid:p.hn}", {format:"CODE128",width:1.8,height:45,displayValue:true,fontSize:12,margin:0});`).join('\n')} setTimeout(function(){window.print(); window.close();}, 800); };<\/script></body></html>`);
                     pWin.document.close();
                 } catch(err) { Swal.fire('ข้อผิดพลาด', 'รูปแบบไฟล์ไม่ถูกต้อง', 'error'); }
                 e.target.value = '';
