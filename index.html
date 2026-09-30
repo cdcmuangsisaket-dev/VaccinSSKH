@@ -395,13 +395,13 @@
 
                 <div class="border rounded-xl p-5 bg-emerald-50 border-emerald-100">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-emerald-900 text-lg">5. อัปเดตสถานะ "ฉีดแล้ว" ด้วยไฟล์ Excel (Batch Update)</h3>
+                        <h3 class="font-bold text-emerald-900 text-lg">5. อัปเดตสถานะและดึงยอด "ฉีดแล้ว" ทั้งระบบ</h3>
                     </div>
-                    <p class="text-xs text-emerald-700 mb-4">อัปโหลดไฟล์ Excel ของ "ผู้ที่ฉีดแล้ว" (ต้องมีคอลัมน์ ชื่อ และ นามสกุล) ระบบจะจับคู่และเปลี่ยนสถานะคิวในระบบให้เป็น "ฉีดแล้ว" ทันที</p>
+                    <p class="text-xs text-emerald-700 mb-4">อัปโหลดไฟล์รายชื่อผู้ที่ฉีดแล้ว ระบบจะนำไปเทียบกับฐานข้อมูลทั้งหมด อัปเดตสถานะให้อัตโนมัติ พร้อม Export ไฟล์ Excel สรุปรายชื่อผู้ที่ฉีดแล้วและยังไม่ฉีดออกมาให้ทันที</p>
                     <div class="border-2 border-dashed border-emerald-300 rounded-xl p-6 text-center hover:bg-emerald-100 transition-colors cursor-pointer relative">
                         <input type="file" id="matchExcelUpload" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleMatchAndUpdateExcel(event)">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto text-emerald-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
-                        <p class="text-emerald-700 font-bold text-sm">คลิกเพื่ออัปโหลด <span class="font-normal">ไฟล์รายชื่อคนฉีดแล้ว</span></p>
+                        <p class="text-emerald-700 font-bold text-sm">คลิกเพื่ออัปโหลด <span class="font-normal">ไฟล์เพื่อจับคู่และสรุปยอด</span></p>
                     </div>
                 </div>
 
@@ -1682,7 +1682,6 @@
                     
                     let pagesHtml = '';
                     validData.forEach((p, idx) => {
-                        const bCode = barcodeSetting === 'CID' ? (p.cid||'-') : (p.hn||'-');
                         const fullName = `${p.prefix||''}${p.fname||''} ${p.lname||''}`.trim();
                         let qHtml = ''; vac.questions.forEach(q => { qHtml += `<div style="margin-bottom:6px; font-size:10.5pt; font-weight:500;"><div style="line-height:1.2;">${q}</div><div style="display:flex; gap:30px; margin-left:10px; margin-top:2px;"><div style="display:flex; align-items:center;"><div style="width:12px; height:12px; border:1px solid #000; margin-right:6px;"></div><span>มี/ใช่</span></div><div style="display:flex; align-items:center;"><div style="display:flex; justify-content:center; align-items:center; width:12px; height:12px; border:1px solid #000; margin-right:6px; font-weight:bold; font-size:10px;">✓</div><span>ไม่มี/ไม่ใช่</span></div></div></div>`; });
                         
@@ -1727,7 +1726,7 @@
             if (!file) return;
 
             document.getElementById('loadingOverlay').style.display = 'flex';
-            document.getElementById('loadingText').innerText = 'กำลังประมวลผลการจับคู่และอัปเดต...';
+            document.getElementById('loadingText').innerText = 'กำลังประมวลผลจับคู่และสร้างรายงาน...';
 
             const reader = new FileReader();
             reader.onload = async function(event) {
@@ -1738,7 +1737,7 @@
 
                     if (rawExcelData.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
 
-                    // 1. อ่านไฟล์ Excel (คนฉีดแล้ว) แล้วสร้างลิสต์รายชื่อ (ล้างคำนำหน้าและช่องว่างทิ้ง)
+                    // 1. อ่านไฟล์ Excel (คนฉีดแล้ว) แล้วสร้างลิสต์รายชื่อแบบล้างคำนำหน้า
                     const excelInjectedNames = new Set();
                     rawExcelData.forEach(row => {
                         let fullNameCombined = '';
@@ -1759,54 +1758,86 @@
                         if(cleanName) excelInjectedNames.add(cleanName);
                     });
 
-                    // 2. ดึงคิวทั้งหมดในระบบ ที่สถานะ "รอฉีด (waiting)" (เพื่อไปอัปเดต)
-                    let matchedCount = 0;
-                    let notFoundCount = excelInjectedNames.size; // ตั้งต้นเป็นจำนวนทั้งหมดใน Excel
-
+                    // 2. ดึงฐานคิวทั้งหมด (Entire Database) มาเทียบ
+                    let newlyUpdatedCount = 0;
+                    let alreadyInjectedCount = 0;
+                    let totalInjectedInSystem = 0;
                     const nowTime = new Date().toISOString();
                     
-                    // เตรียมตัวแบ่งการอัปเดตเป็น Batch (Firestore จำกัด 500 operations ต่อ batch)
                     const batches = [];
                     let currentBatch = writeBatch(db);
                     let opCount = 0;
 
+                    // สำหรับสร้างไฟล์ Excel สรุป
+                    const exportList = [];
+
                     queueData.forEach(q => {
-                        if (q.status === 'waiting' && q.name) {
-                            let qCleanName = q.name.replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|น\.ส\.|พล\.ต\.ต\.|พ\.ต\.อ\.|พ\.ต\.ท\.|พ\.ต\.ต\.|ร\.ต\.อ\.|ร\.ต\.ท\.|ร\.ต\.ต\.|ด\.ต\.|จ\.ส\.ต\.|ส\.ต\.อ\.|ส\.ต\.ท\.|ส\.ต\.ต\.|ว่าที่ ร\.ต\.|พระ|สามเณร)\s*/i, '');
-                            qCleanName = qCleanName.replace(/\s+/g, '').toLowerCase();
+                        let qCleanName = (q.name || '').replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|น\.ส\.|พล\.ต\.ต\.|พ\.ต\.อ\.|พ\.ต\.ท\.|พ\.ต\.ต\.|ร\.ต\.อ\.|ร\.ต\.ท\.|ร\.ต\.ต\.|ด\.ต\.|จ\.ส\.ต\.|ส\.ต\.อ\.|ส\.ต\.ท\.|ส\.ต\.ต\.|ว่าที่ ร\.ต\.|พระ|สามเณร)\s*/i, '').replace(/\s+/g, '').toLowerCase();
 
-                            if (excelInjectedNames.has(qCleanName)) {
-                                // Match! เพิ่มคำสั่งอัปเดตสถานะเป็น "injected" ใน batch
+                        // ตรวจสอบว่าชื่อในฐาน ไปตรงกับชื่อในไฟล์ Excel ที่อัปโหลดมาไหม?
+                        let isMatch = excelInjectedNames.has(qCleanName);
+
+                        // ถ้าพบข้อมูลจับคู่ตรงกัน
+                        if (isMatch) {
+                            if (q.status !== 'injected') {
+                                // ถ้าในระบบยังไม่เปลี่ยนสถานะ -> อัปเดตใน Firebase
                                 const qRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue', q.id);
-                                currentBatch.update(qRef, {
-                                    status: 'injected',
-                                    injectTime: nowTime
-                                });
-                                
-                                matchedCount++;
-                                notFoundCount--; // ลดจำนวนที่ไม่เจอลง
+                                currentBatch.update(qRef, { status: 'injected', injectTime: nowTime });
+                                newlyUpdatedCount++;
                                 opCount++;
-
-                                if (opCount === 400) { // ปลอดภัยไว้ก่อนที่ 400
-                                    batches.push(currentBatch);
-                                    currentBatch = writeBatch(db);
-                                    opCount = 0;
-                                }
+                                if (opCount === 400) { batches.push(currentBatch); currentBatch = writeBatch(db); opCount = 0; }
+                                
+                                // จำลองการอัปเดตใน memory ชั่วคราวเพื่อนำไปออกรายงาน
+                                q.status = 'injected'; 
+                                q.injectTime = nowTime;
+                            } else {
+                                alreadyInjectedCount++;
                             }
                         }
+
+                        // ตรวจสอบสถานะเพื่อนำไปเขียนลงรายงาน Excel
+                        let statusText = 'รอฉีด';
+                        if (q.status === 'injected') { 
+                            statusText = '✅ ฉีดแล้ว'; 
+                            totalInjectedInSystem++; 
+                        } else if (q.decision === 'decline') {
+                            statusText = '❌ ไม่ยินยอม';
+                        }
+
+                        // สะสมรายชื่อของฐานทั้งหมด เพื่อนำไปดึงออกเป็น Excel
+                        exportList.push({
+                            'วันที่ลงทะเบียน': new Date(q.timestamp).toLocaleDateString('th-TH'),
+                            'เวลาที่ฉีด': q.injectTime ? new Date(q.injectTime).toLocaleString('th-TH') : '-',
+                            'รหัส HN': q.hn || '-',
+                            'เลขบัตรประชาชน': q.cid || '-',
+                            'ชื่อ-นามสกุล': q.name,
+                            'วัคซีน': q.vaccine,
+                            'สถานะ': statusText
+                        });
                     });
 
-                    // เพิ่ม Batch สุดท้าย (ถ้ามี)
+                    // Commit การอัปเดตทั้งหมดขึ้น Firebase
                     if (opCount > 0) batches.push(currentBatch);
+                    for (let batch of batches) await batch.commit();
 
-                    // 3. เริ่มอัปเดตขึ้น Firebase
-                    for (let batch of batches) {
-                        await batch.commit();
+                    // 3. สร้างและดาวน์โหลดไฟล์ Excel ฐานข้อมูลทั้งหมด (พร้อมอัปเดตสถานะล่าสุดแล้ว)
+                    if (exportList.length > 0) {
+                        const newWs = XLSX.utils.json_to_sheet(exportList);
+                        const newWb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(newWb, newWs, "Total_Queue_Report");
+                        XLSX.writeFile(newWb, `รายงานฐานข้อมูลผู้รับบริการ_${new Date().getTime()}.xlsx`);
                     }
 
+                    // 4. แสดงรายงานผลรวมให้แอดมินดู
                     Swal.fire({
-                        title: 'อัปเดตข้อมูลสำเร็จ!',
-                        html: `<b>ระบบได้ทำการเปลี่ยนสถานะคิวเป็น "ฉีดแล้ว" ให้กับ:</b><br/>จำนวน <b>${matchedCount}</b> คน (ที่มีคิวรออยู่)<br/><br/><span class="text-sm text-gray-500">รายชื่อใน Excel ที่หาคิวรอไม่เจอ: ${notFoundCount} คน</span>`,
+                        title: 'อัปเดตและสร้างรายงานสำเร็จ!',
+                        html: `<b>สรุปผลการจับคู่กับฐานข้อมูล:</b><br/>
+                               - อัปเดตสถานะเป็น "ฉีดแล้ว" เพิ่ม: <b class="text-green-600">${newlyUpdatedCount}</b> คน<br/>
+                               - ผู้ที่เคยมีสถานะ "ฉีดแล้ว" อยู่ก่อน: <b>${alreadyInjectedCount}</b> คน<br/>
+                               <hr class="my-2 border-gray-200"/>
+                               ยอดผู้ที่ <u>ฉีดแล้วทั้งหมดในระบบ</u>: <b class="text-blue-600 text-2xl">${totalInjectedInSystem}</b> คน<br/>
+                               <hr class="my-2 border-gray-200"/>
+                               <span class="text-sm text-gray-500 font-bold">* ระบบได้ดาวน์โหลดไฟล์ Excel ที่แสดงรายชื่อฐานข้อมูลทั้งหมดพร้อมสถานะให้คุณแล้ว</span>`,
                         icon: 'success'
                     });
 
