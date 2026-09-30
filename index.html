@@ -1668,8 +1668,109 @@
             reader.readAsArrayBuffer(file);
         }
 
-        function handleBatchPrintUpload(e) {
-            // ... (โค้ดเดิม) ...
+        async function handleBatchPrintUpload(e) {
+            const file = e.target.files[0];
+            const vaccineName = document.getElementById('batchVaccineSelect').value;
+            if (!file || !vaccineName) {
+                Swal.fire('ข้อผิดพลาด', 'กรุณาเลือกชนิดวัคซีนและไฟล์ Excel', 'error');
+                e.target.value = '';
+                return;
+            }
+
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            document.getElementById('loadingText').innerText = 'กำลังเตรียมพิมพ์...';
+
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                try {
+                    const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
+                    const rawExcelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                    
+                    if (rawExcelData.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
+
+                    const printWindow = window.open('', '_blank', 'width=800,height=900');
+                    if (!printWindow) {
+                        throw new Error("เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป กรุณาอนุญาตให้แสดงป๊อปอัปก่อน");
+                    }
+
+                    let htmlContent = `
+                        <!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>พิมพ์ใบยินยอมล่วงหน้า (Batch)</title>
+                        <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;700&display=swap" rel="stylesheet">
+                        <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"><\/script>
+                        <style>
+                            * { box-sizing: border-box; }
+                            body { font-family: 'Prompt', sans-serif; margin: 0; padding: 0; background: #fff; color: #111; }
+                            .print-container { padding: 5%; width: 100%; max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; justify-content: space-between; min-height: 90vh; page-break-after: always; }
+                            @media print { 
+                                @page { size: auto; margin: 5mm; } 
+                                body { width: 100%; } 
+                                .print-container { width: 100%; max-width: 100%; padding: 2mm; height: 95vh; min-height: unset; margin: 0; border: none; box-shadow: none; page-break-after: always; } 
+                                .print-container:last-child { page-break-after: auto; }
+                            }
+                        </style></head><body>
+                    `;
+
+                    const currentVaccine = vaccinesData.find(v => v.name === vaccineName);
+                    let qHtml = '';
+                    if (currentVaccine && currentVaccine.questions) {
+                        currentVaccine.questions.forEach(qText => {
+                            qHtml += `<div style="margin-bottom:6px; font-size:10.5pt; color:#111; font-weight:500;"><div style="margin-bottom:2px; line-height:1.2;">${qText}</div><div style="display:flex; gap:30px; margin-left:10px;"><div style="display:flex; align-items:center;"><div style="display:flex; justify-content:center; align-items:center; width:12px; height:12px; border:1px solid #000; margin-right:6px; font-weight:bold; font-size:10px;"></div><span>มี/ใช่</span></div><div style="display:flex; align-items:center;"><div style="display:flex; justify-content:center; align-items:center; width:12px; height:12px; border:1px solid #000; margin-right:6px; font-weight:bold; font-size:10px;"></div><span>ไม่มี/ไม่ใช่</span></div></div></div>`;
+                        });
+                    }
+
+                    const timeStr = `${new Date().toLocaleDateString('th-TH')} ${new Date().getHours().toString().padStart(2,'0')}:${new Date().getMinutes().toString().padStart(2,'0')}`;
+                    let barcodeScripts = '';
+
+                    rawExcelData.forEach((row, index) => {
+                        const parsedRow = parseExcelRow(row);
+                        const fullName = `${parsedRow.prefix || ''}${parsedRow.fname || ''} ${parsedRow.lname || ''}`.trim() || 'ไม่ระบุชื่อ';
+                        const hn = parsedRow.hn || '-';
+                        const cid = parsedRow.cid || '-';
+                        const barcodeData = barcodeSetting === 'CID' ? cid : hn;
+                        const barcodeId = `barcode_${index}`;
+
+                        htmlContent += `
+                            <div class="print-container">
+                                <div style="width:100%;">
+                                    <div style="text-align:center; border-bottom:2px solid #374151; padding-bottom:4px; margin-bottom:15px;"><h2 style="font-size:18pt; font-weight:bold; margin:0;">โรงพยาบาลศรีสะเกษ</h2><h3 style="font-size:14pt; font-weight:bold; margin:0;">แบบคัดกรองและแสดงความยินยอม (พิมพ์ล่วงหน้า)</h3><p style="font-size:11pt; color:#4b5563; margin:0;">การรับบริการฉีดวัคซีนป้องกันโรคติดต่อ</p></div>
+                                    <div style="font-size:12pt; margin-bottom:15px; line-height:1.6;"><div style="display:flex; justify-content:space-between;"><div><b>ชื่อ-สกุล:</b> ${fullName}</div><div><b>รหัส HN:</b> ${hn}</div></div><div><b>วัคซีนที่รับ:</b> ${vaccineName}</div><div style="margin-top:6px;"><b>สัญญาณชีพ:</b> นน. ................... กก. &nbsp;|&nbsp; สส. ................... ซม. &nbsp;|&nbsp; อุณหภูมิ ................... °C</div><div style="margin-top:6px;"><b>ชีพจร:</b> ................... ครั้ง/นาที &nbsp;|&nbsp; <b>ความดันโลหิต:</b> ................... mmHg</div></div>
+                                    <div style="margin-bottom:15px;"><div style="font-size:13pt; font-weight:bold; margin-bottom:8px; border-bottom:1px dashed #ccc; padding-bottom:4px;">ผลการคัดกรองเบื้องต้น: (กรุณาทำเครื่องหมาย ✓)</div>${qHtml}</div>
+                                    <div style="border:2px solid #374151; border-radius:8px; padding:10px; text-align:center; background:#f9fafb;"><div style="font-size:14pt; font-weight:bold; color:#1d4ed8;">ความจำนง: [ &nbsp; ] ยินยอมรับวัคซีน &nbsp;&nbsp;&nbsp; [ &nbsp; ] ไม่ยินยอม</div></div>
+                                </div>
+                                <div style="text-align:center; width:100%; margin-top:20px;">
+                                    <div style="font-size:12pt; margin-bottom:8px; line-height:1.4;"><div>ลงชื่อ ........................................................................ ผู้รับบริการ</div><div>( ${fullName} )</div><div style="font-size:10pt; color:#6b7280; margin-top:4px;">พิมพ์เตรียมไว้เมื่อ: ${timeStr}</div></div>
+                                    <div style="display:flex; justify-content:center;"><svg id="${barcodeId}"></svg></div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        if (barcodeData !== '-') {
+                            barcodeScripts += `JsBarcode("#${barcodeId}", "${barcodeData}", {format:"CODE128", width:1.8, height:45, displayValue:true, fontSize:12, margin:0});\n`;
+                        }
+                    });
+
+                    htmlContent += `
+                        <script>
+                            window.onload = function() {
+                                ${barcodeScripts}
+                                setTimeout(function() { window.print(); window.close(); }, 500);
+                            };
+                        <\/script></body></html>
+                    `;
+
+                    printWindow.document.write(htmlContent);
+                    printWindow.document.close();
+
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'เตรียมพิมพ์สำเร็จ', showConfirmButton: false, timer: 2000 });
+
+                } catch (err) {
+                    Swal.fire('ข้อผิดพลาด', err.message, 'error');
+                } finally {
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    e.target.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
         }
 
         async function handleMatchAndUpdateExcel(e) {
