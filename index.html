@@ -1761,12 +1761,24 @@
                             statusText = '❌ ไม่ยินยอม';
                         }
 
+                        // ทำความสะอาด HN ก่อน Export (ถ้ามีเว้นวรรค หรือยาวเท่า CID แปลว่าไม่น่าใช่ HN)
+                        let cleanHn = q.hn ? String(q.hn).trim() : '';
+                        if (!cleanHn || cleanHn === '' || cleanHn === String(q.cid) || cleanHn === 'undefined' || cleanHn === 'null') {
+                            cleanHn = '-'; // ไม่มี HN จริงๆ
+                        }
+
+                        // ทำความสะอาด CID ก่อน Export
+                        let cleanCid = q.cid ? String(q.cid).trim() : '';
+                        if (!cleanCid || cleanCid === '' || cleanCid === 'undefined' || cleanCid === 'null') {
+                            cleanCid = '-';
+                        }
+
                         // สะสมรายชื่อของฐานทั้งหมด เพื่อนำไปดึงออกเป็น Excel
                         exportList.push({
                             'วันที่ลงทะเบียน': new Date(q.timestamp).toLocaleDateString('th-TH'),
                             'เวลาที่ฉีด': q.injectTime ? new Date(q.injectTime).toLocaleString('th-TH') : '-',
-                            'รหัส HN': q.hn || '-',
-                            'เลขบัตรประชาชน': q.cid || '-',
+                            'รหัส HN': cleanHn,
+                            'เลขบัตรประชาชน': cleanCid,
                             'ชื่อ-นามสกุล': q.name,
                             'วัคซีน': q.vaccine,
                             'สถานะ': statusText
